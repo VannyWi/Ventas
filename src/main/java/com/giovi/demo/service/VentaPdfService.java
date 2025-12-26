@@ -4,9 +4,7 @@ import com.giovi.demo.entity.DetalleVenta;
 import com.giovi.demo.entity.Tienda;
 import com.giovi.demo.entity.Venta;
 import com.lowagie.text.*;
-import com.lowagie.text.pdf.PdfPCell;
-import com.lowagie.text.pdf.PdfPTable;
-import com.lowagie.text.pdf.PdfWriter;
+import com.lowagie.text.pdf.*;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -20,33 +18,29 @@ import java.util.List;
 public class VentaPdfService {
 
     public void exportar(HttpServletResponse response, Venta venta) throws IOException, DocumentException {
-        // 1. CONFIGURACIÓN DEL PAPEL
-        // Ancho de 226 puntos es estándar para 80mm. 
-        // Aumentamos el alto (1200) para que no cree una segunda hoja innecesariamente en tickets largos.
+        // 1. CONFIGURACIÓN
         Rectangle ticketSize = new Rectangle(226, 1200); 
-        Document document = new Document(ticketSize, 5, 5, 10, 10); // Márgenes reducidos a 5 para aprovechar ancho
-        PdfWriter.getInstance(document, response.getOutputStream());
+        Document document = new Document(ticketSize, 5, 5, 10, 10);
+        
+        PdfWriter writer = PdfWriter.getInstance(document, response.getOutputStream());
 
         document.open();
 
-        // 2. DEFINICIÓN DE FUENTES
-        Font fTiendaNombre = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14); // Nombre Tienda
-        Font fInfoTienda = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8);     // Datos Tienda (Negrita pedida)
+        // 2. FUENTES
+        Font fTiendaNombre = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14);
+        Font fInfoTienda = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11); // Negrita     
+        Font fTituloNormal = FontFactory.getFont(FontFactory.HELVETICA, 9);        
+        Font fNegrita = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);        
         
-        Font fTituloNormal = FontFactory.getFont(FontFactory.HELVETICA, 8);        // Títulos normales
-        Font fNegrita = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8);        // Negritas generales
-        
-        // Fuentes Monoespaciadas para la tabla (alineación perfecta)
-        Font fCourier = FontFactory.getFont(FontFactory.COURIER, 8);
-        Font fCourierBold = FontFactory.getFont(FontFactory.COURIER_BOLD, 8);
+        Font fCourier = FontFactory.getFont(FontFactory.COURIER, 10);
+        Font fCourierBold = FontFactory.getFont(FontFactory.COURIER_BOLD, 9);
 
-        Font fTotalLabel = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+        Font fTotalLabel = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
         Font fTotalValue = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15);
         Font fPie = FontFactory.getFont(FontFactory.HELVETICA, 7);
 
-        // Separador largo para cubrir los 80mm
-        String separadorLinea = "--------------------------------------------"; 
-        String separadorDoble = "============================================";
+        String separadorLinea = "------------------------------------"; 
+        String separadorDoble = "====================================";
 
         // --- SECCIÓN 1: LOGO ---
         try {
@@ -74,17 +68,16 @@ public class VentaPdfService {
             String cel = tienda.getCelular() != null ? tienda.getCelular() : "-";
 
             pTienda.add(new Phrase(nombre + "\n", fTiendaNombre));
-            // Datos en negrita como pediste
             pTienda.add(new Phrase("RUC: " + ruc + "\n", fInfoTienda));
             pTienda.add(new Phrase("Dirección: " + dir + "\n", fInfoTienda));
-            pTienda.add(new Phrase("Cel: " + cel + "\n", fInfoTienda)); // Solo "Cel"
+            pTienda.add(new Phrase("Cel: " + cel + "\n", fInfoTienda));
         } else {
             pTienda.add(new Phrase("PUNTO DE VENTA\n", fTiendaNombre));
         }
         document.add(pTienda);
         
         Paragraph pSep1 = new Paragraph(separadorDoble, fCourier);
-        pSep1.setAlignment(Element.ALIGN_CENTER); // Centramos para asegurar que cubra
+        pSep1.setAlignment(Element.ALIGN_CENTER);
         document.add(pSep1);
 
         // --- SECCIÓN 3: DATOS TICKET ---
@@ -113,9 +106,9 @@ public class VentaPdfService {
         String dniCli = (venta.getCliente() != null && venta.getCliente().getDni() != null) ? venta.getCliente().getDni() : "-";
         String nomCajero = (venta.getUsuario() != null) ? venta.getUsuario().getNombre() : "Sistema";
 
-        agregarFilaInfo(tCliente, "CLI:", nomCli, fNegrita, fTituloNormal);
+        agregarFilaInfo(tCliente, "CLIENTE:", nomCli, fNegrita, fTituloNormal);
         agregarFilaInfo(tCliente, "DNI:", dniCli, fNegrita, fTituloNormal);
-        agregarFilaInfo(tCliente, "CAJ:", nomCajero, fNegrita, fTituloNormal);
+        agregarFilaInfo(tCliente, "VENDEDOR:", nomCajero, fNegrita, fTituloNormal);
 
         document.add(tCliente);
         
@@ -126,7 +119,6 @@ public class VentaPdfService {
         // --- SECCIÓN 5: PRODUCTOS ---
         PdfPTable tProd = new PdfPTable(4); 
         tProd.setWidthPercentage(100);
-        // CORRECCIÓN: Aumenté el primer valor (1.3f) para que "CANT" entre bien sin saltar línea
         tProd.setWidths(new float[]{1.3f, 4.2f, 2f, 2.5f}); 
 
         tProd.addCell(celda("CANT", fCourierBold, Element.ALIGN_CENTER));
@@ -138,7 +130,6 @@ public class VentaPdfService {
         if (detalles != null) {
             for (DetalleVenta d : detalles) {
                 String desc = (d.getProducto() != null) ? d.getProducto().getNombre() : "-";
-                // Corte de seguridad para nombres muy largos
                 if(desc.length() > 22) desc = desc.substring(0, 22);
 
                 Double precio = (d.getPrecioUnitario() != null) ? d.getPrecioUnitario() : 0.0;
@@ -169,11 +160,9 @@ public class VentaPdfService {
             agregarFilaTotal(tTotal, "DESCUENTO:", String.format("- S/. %.2f", descuento), fTituloNormal);
         }
 
-        // Espacio vacío
         tTotal.addCell(celda(" ", fTituloNormal, Element.ALIGN_CENTER));
         tTotal.addCell(celda(" ", fTituloNormal, Element.ALIGN_CENTER));
 
-        // TOTAL GRANDE
         PdfPCell lTotal = celda("TOTAL A PAGAR:", fTotalLabel, Element.ALIGN_RIGHT);
         lTotal.setVerticalAlignment(Element.ALIGN_BOTTOM);
         tTotal.addCell(lTotal);
@@ -199,6 +188,28 @@ public class VentaPdfService {
             agregarFilaTotal(tPago, "SU CAMBIO:", String.format("S/. %.2f", vuelto), fNegrita);
         }
         document.add(tPago);
+        
+        document.add(new Paragraph("\n"));
+
+        // --- CÓDIGO DE BARRAS (SIN TEXTO) ---
+        try {
+            PdfContentByte cb = writer.getDirectContent();
+            Barcode128 code128 = new Barcode128();
+            code128.setCode(nroVenta);
+            code128.setCodeType(Barcode128.CODE128);
+            code128.setBarHeight(35f); // Altura de barras
+            
+            // ESTA LÍNEA ELIMINA EL TEXTO ABAJO DEL CÓDIGO:
+            code128.setFont(null); 
+            
+            Image codeImage = code128.createImageWithBarcode(cb, null, null);
+            codeImage.setAlignment(Element.ALIGN_CENTER);
+            codeImage.scalePercent(140);
+            
+            document.add(codeImage);
+        } catch (Exception e) { }
+        
+        document.add(new Paragraph("\n"));
 
         // --- PIE ---
         Paragraph pSep5 = new Paragraph(separadorDoble, fCourier);
@@ -212,7 +223,7 @@ public class VentaPdfService {
         document.close();
     }
 
-    // --- MÉTODOS AYUDA ---
+    // --- MÉTODOS AUXILIARES ---
 
     private PdfPCell celda(String txt, Font f, int align) {
         PdfPCell c = new PdfPCell(new Phrase(txt, f));
@@ -229,7 +240,7 @@ public class VentaPdfService {
         
         PdfPCell c2 = new PdfPCell(new Phrase(val, fV));
         c2.setBorder(Rectangle.NO_BORDER);
-        c2.setHorizontalAlignment(Element.ALIGN_LEFT); // Datos cliente a la izquierda
+        c2.setHorizontalAlignment(Element.ALIGN_LEFT);
         
         t.addCell(c1);
         t.addCell(c2);
