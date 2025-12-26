@@ -1,7 +1,7 @@
 package com.giovi.demo.repository;
 
 import com.giovi.demo.entity.DetalleVenta;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Pageable; // IMPORTANTE: No olvidar este import
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,16 +13,14 @@ import java.util.List;
 @Repository
 public interface DetalleVentaRepository extends JpaRepository<DetalleVenta, Long> {
 
-    // 4. Top Productos Más Vendidos (Para Gráfico Barras)
-    // Retorna [NombreProducto, CantidadVendida]
+    // 1. Top Productos Más Vendidos
     @Query("SELECT d.producto.nombre, SUM(d.cantidad) as total " +
            "FROM DetalleVenta d " +
            "GROUP BY d.producto.nombre " +
            "ORDER BY total DESC")
     List<Object[]> encontrarTopProductosVendidos(Pageable pageable);
 
-    // 5. Ventas por Categoría (Para Gráfico Dona)
-    // Retorna [NombreCategoria, MontoGenerado]
+    // 2. Ventas por Categoría (en un rango de fechas)
     @Query("SELECT d.producto.categoria.nombre, SUM(d.subtotal) " +
            "FROM DetalleVenta d " +
            "WHERE d.venta.fecha BETWEEN :inicio AND :fin " +

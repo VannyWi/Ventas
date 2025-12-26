@@ -66,14 +66,4 @@ public class LoginController {
         return "redirect:/login";
     }
     
-    // --- RUTAS PROTEGIDAS (Ejemplos) ---
-    @GetMapping("/homeadmin")
-    public String homeAdmin() {
-        return "homeadmin";
-    }
-
-    @GetMapping("/homevendedores")
-    public String homeVendedores() {
-        return "homevendedores";
-    }
 }
