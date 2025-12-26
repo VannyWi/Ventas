@@ -20,176 +20,231 @@ import java.util.List;
 public class VentaPdfService {
 
     public void exportar(HttpServletResponse response, Venta venta) throws IOException, DocumentException {
-        // 1. CONFIGURACIÓN TAMAÑO TICKET (80mm aprox = 226 puntos de ancho)
-        // La altura (800) es referencial, la impresora térmica cortará donde termine el contenido.
-        Rectangle ticketSize = new Rectangle(226, 800); 
-        Document document = new Document(ticketSize, 10, 10, 10, 10); // Márgenes pequeños (Izq, Der, Arr, Aba)
+        // 1. CONFIGURACIÓN DEL PAPEL
+        // Ancho de 226 puntos es estándar para 80mm. 
+        // Aumentamos el alto (1200) para que no cree una segunda hoja innecesariamente en tickets largos.
+        Rectangle ticketSize = new Rectangle(226, 1200); 
+        Document document = new Document(ticketSize, 5, 5, 10, 10); // Márgenes reducidos a 5 para aprovechar ancho
         PdfWriter.getInstance(document, response.getOutputStream());
 
         document.open();
 
-        // 2. FUENTES AJUSTADAS (Tamaños pequeños para ticket)
-        Font fontEmpresa = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11);
-        Font fontTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
-        Font fontNormal = FontFactory.getFont(FontFactory.HELVETICA, 8);
-        Font fontNegrita = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8);
-        Font fontPie = FontFactory.getFont(FontFactory.HELVETICA, 7);
+        // 2. DEFINICIÓN DE FUENTES
+        Font fTiendaNombre = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14); // Nombre Tienda
+        Font fInfoTienda = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8);     // Datos Tienda (Negrita pedida)
+        
+        Font fTituloNormal = FontFactory.getFont(FontFactory.HELVETICA, 8);        // Títulos normales
+        Font fNegrita = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8);        // Negritas generales
+        
+        // Fuentes Monoespaciadas para la tabla (alineación perfecta)
+        Font fCourier = FontFactory.getFont(FontFactory.COURIER, 8);
+        Font fCourierBold = FontFactory.getFont(FontFactory.COURIER_BOLD, 8);
+
+        Font fTotalLabel = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+        Font fTotalValue = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15);
+        Font fPie = FontFactory.getFont(FontFactory.HELVETICA, 7);
+
+        // Separador largo para cubrir los 80mm
+        String separadorLinea = "--------------------------------------------"; 
+        String separadorDoble = "============================================";
 
         // --- SECCIÓN 1: LOGO ---
         try {
             ClassPathResource imageResource = new ClassPathResource("static/Imagenes/logo.png");
             Image logo = Image.getInstance(imageResource.getURL());
-            logo.scaleToFit(50, 50); // Logo más pequeño para que entre bien
+            logo.scaleToFit(50, 50);
             logo.setAlignment(Element.ALIGN_CENTER);
+            logo.setSpacingAfter(5);
             document.add(logo);
-        } catch (Exception e) {
-            // Si falla el logo, no detenemos la impresión
-            System.err.println("Error cargando logo: " + e.getMessage());
+        } catch (Exception e) { } 
+
+        // --- SECCIÓN 2: CABECERA TIENDA ---
+        Tienda tienda = venta.getTienda();
+        if (tienda == null && venta.getUsuario() != null) {
+            tienda = venta.getUsuario().getTienda();
         }
 
-        // --- SECCIÓN 2: DATOS DE LA TIENDA ---
-        Tienda tienda = venta.getTienda();
         Paragraph pTienda = new Paragraph();
         pTienda.setAlignment(Element.ALIGN_CENTER);
-        pTienda.setSpacingBefore(5);
         
         if (tienda != null) {
-            pTienda.add(new Phrase(tienda.getNombre().toUpperCase() + "\n", fontEmpresa));
-            pTienda.add(new Phrase("RUC: " + tienda.getRuc() + "\n", fontNormal));
-            pTienda.add(new Phrase(tienda.getDireccion() + "\n", fontNormal));
-            pTienda.add(new Phrase("Cel: " + tienda.getCelular() + "\n", fontNormal));
+            String nombre = tienda.getNombre() != null ? tienda.getNombre().toUpperCase() : "TIENDA";
+            String ruc = tienda.getRuc() != null ? tienda.getRuc() : "-";
+            String dir = tienda.getDireccion() != null ? tienda.getDireccion() : "-";
+            String cel = tienda.getCelular() != null ? tienda.getCelular() : "-";
+
+            pTienda.add(new Phrase(nombre + "\n", fTiendaNombre));
+            // Datos en negrita como pediste
+            pTienda.add(new Phrase("RUC: " + ruc + "\n", fInfoTienda));
+            pTienda.add(new Phrase("Dirección: " + dir + "\n", fInfoTienda));
+            pTienda.add(new Phrase("Cel: " + cel + "\n", fInfoTienda)); // Solo "Cel"
         } else {
-            pTienda.add(new Phrase("TIENDA NO ASIGNADA\n", fontEmpresa));
+            pTienda.add(new Phrase("PUNTO DE VENTA\n", fTiendaNombre));
         }
         document.add(pTienda);
-        document.add(new Paragraph("---------------------------------------------", fontNormal));
-
-        // --- SECCIÓN 3: INFO DEL TICKET ---
-        Paragraph pTicket = new Paragraph();
-        pTicket.setAlignment(Element.ALIGN_CENTER);
         
-        // Número de venta
+        Paragraph pSep1 = new Paragraph(separadorDoble, fCourier);
+        pSep1.setAlignment(Element.ALIGN_CENTER); // Centramos para asegurar que cubra
+        document.add(pSep1);
+
+        // --- SECCIÓN 3: DATOS TICKET ---
+        Paragraph pDatos = new Paragraph();
+        pDatos.setAlignment(Element.ALIGN_CENTER);
+        
         String nroVenta = (venta.getNumeroVenta() != null) ? venta.getNumeroVenta() : String.format("%06d", venta.getId());
-        pTicket.add(new Phrase("TICKET DE VENTA: " + nroVenta + "\n", fontTitulo));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy  hh:mm a");
+        String fecha = (venta.getFecha() != null) ? venta.getFecha().format(formatter) : "--/--/--";
+
+        pDatos.add(new Phrase("TICKET DE VENTA: " + nroVenta + "\n", fNegrita));
+        pDatos.add(new Phrase("Fecha y Hora: " + fecha + "\n", fTituloNormal));
         
-        // Fecha y Hora formateada
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-        String fechaHora = (venta.getFecha() != null) ? venta.getFecha().format(formatter) : "---";
-        pTicket.add(new Phrase("Fecha: " + fechaHora + "\n", fontNormal));
+        document.add(pDatos);
         
-        document.add(pTicket);
-        document.add(new Paragraph("---------------------------------------------", fontNormal));
+        Paragraph pSep2 = new Paragraph(separadorLinea, fCourier);
+        pSep2.setAlignment(Element.ALIGN_CENTER);
+        document.add(pSep2);
 
-        // --- SECCIÓN 4: DATOS DEL CLIENTE Y CAJERO ---
-        Paragraph pCliente = new Paragraph();
-        pCliente.setAlignment(Element.ALIGN_LEFT);
+        // --- SECCIÓN 4: CLIENTE ---
+        PdfPTable tCliente = new PdfPTable(2);
+        tCliente.setWidthPercentage(100);
+        tCliente.setWidths(new float[]{2f, 8f}); 
+
+        String nomCli = (venta.getCliente() != null) ? venta.getCliente().getNombre().toUpperCase() : "PUBLICO GENERAL";
+        String dniCli = (venta.getCliente() != null && venta.getCliente().getDni() != null) ? venta.getCliente().getDni() : "-";
+        String nomCajero = (venta.getUsuario() != null) ? venta.getUsuario().getNombre() : "Sistema";
+
+        agregarFilaInfo(tCliente, "CLI:", nomCli, fNegrita, fTituloNormal);
+        agregarFilaInfo(tCliente, "DNI:", dniCli, fNegrita, fTituloNormal);
+        agregarFilaInfo(tCliente, "CAJ:", nomCajero, fNegrita, fTituloNormal);
+
+        document.add(tCliente);
         
-        String nombreCliente = (venta.getCliente() != null) ? venta.getCliente().getNombre() : "Cliente General";
-        String dniCliente = (venta.getCliente() != null && venta.getCliente().getDni() != null) ? venta.getCliente().getDni() : "---";
-        String vendedor = (venta.getUsuario() != null) ? venta.getUsuario().getNombre() : "Sistema";
+        Paragraph pSep3 = new Paragraph(separadorLinea, fCourier);
+        pSep3.setAlignment(Element.ALIGN_CENTER);
+        document.add(pSep3);
 
-        pCliente.add(new Phrase("Cliente: " + nombreCliente + "\n", fontNormal));
-        pCliente.add(new Phrase("DNI: " + dniCliente + "\n", fontNormal)); // Solo mostramos DNI como pediste
-        pCliente.add(new Phrase("Cajero: " + vendedor + "\n", fontNormal));
-        
-        document.add(pCliente);
-        document.add(new Paragraph("---------------------------------------------", fontNormal));
+        // --- SECCIÓN 5: PRODUCTOS ---
+        PdfPTable tProd = new PdfPTable(4); 
+        tProd.setWidthPercentage(100);
+        // CORRECCIÓN: Aumenté el primer valor (1.3f) para que "CANT" entre bien sin saltar línea
+        tProd.setWidths(new float[]{1.3f, 4.2f, 2f, 2.5f}); 
 
-        // --- SECCIÓN 5: DETALLE DE PRODUCTOS ---
-        PdfPTable tabla = new PdfPTable(4); // Columnas: Cant, Desc, PU, Total
-        tabla.setWidthPercentage(100);
-        // Anchos relativos: Cantidad pequeña, Descripción grande, Precio y Total medianos
-        tabla.setWidths(new float[]{1f, 4.5f, 2f, 2.5f}); 
+        tProd.addCell(celda("CANT", fCourierBold, Element.ALIGN_CENTER));
+        tProd.addCell(celda("DESCRIPCION", fCourierBold, Element.ALIGN_LEFT));
+        tProd.addCell(celda("P.UNIT", fCourierBold, Element.ALIGN_RIGHT));
+        tProd.addCell(celda("TOTAL", fCourierBold, Element.ALIGN_RIGHT));
 
-        // Cabecera de tabla
-        tabla.addCell(celdaSinBorde("Cant.", fontNegrita, Element.ALIGN_CENTER));
-        tabla.addCell(celdaSinBorde("Descrip.", fontNegrita, Element.ALIGN_LEFT));
-        tabla.addCell(celdaSinBorde("P.Unit", fontNegrita, Element.ALIGN_RIGHT));
-        tabla.addCell(celdaSinBorde("Total", fontNegrita, Element.ALIGN_RIGHT));
-
-        // Filas de productos
         List<DetalleVenta> detalles = venta.getDetalleVenta();
         if (detalles != null) {
-            for (DetalleVenta detalle : detalles) {
-                // Cantidad
-                tabla.addCell(celdaSinBorde(String.valueOf(detalle.getCantidad()), fontNormal, Element.ALIGN_CENTER));
-                
-                // Descripción
-                String prodNombre = (detalle.getProducto() != null) ? detalle.getProducto().getNombre() : "---";
-                tabla.addCell(celdaSinBorde(prodNombre, fontNormal, Element.ALIGN_LEFT));
-                
-                // Precio Unitario (usamos getPrecioUnitario() de tu entidad)
-                Double precio = (detalle.getPrecioUnitario() != null) ? detalle.getPrecioUnitario() : 0.0;
-                tabla.addCell(celdaSinBorde(String.format("%.2f", precio), fontNormal, Element.ALIGN_RIGHT));
-                
-                // Subtotal
-                Double subtotal = (detalle.getSubtotal() != null) ? detalle.getSubtotal() : 0.0;
-                tabla.addCell(celdaSinBorde(String.format("%.2f", subtotal), fontNormal, Element.ALIGN_RIGHT));
+            for (DetalleVenta d : detalles) {
+                String desc = (d.getProducto() != null) ? d.getProducto().getNombre() : "-";
+                // Corte de seguridad para nombres muy largos
+                if(desc.length() > 22) desc = desc.substring(0, 22);
+
+                Double precio = (d.getPrecioUnitario() != null) ? d.getPrecioUnitario() : 0.0;
+                Double sub = (d.getSubtotal() != null) ? d.getSubtotal() : 0.0;
+
+                tProd.addCell(celda(String.valueOf(d.getCantidad()), fCourier, Element.ALIGN_CENTER));
+                tProd.addCell(celda(desc, fCourier, Element.ALIGN_LEFT));
+                tProd.addCell(celda(String.format("%.2f", precio), fCourier, Element.ALIGN_RIGHT));
+                tProd.addCell(celda(String.format("%.2f", sub), fCourier, Element.ALIGN_RIGHT));
             }
         }
-        document.add(tabla);
-        document.add(new Paragraph("---------------------------------------------", fontNormal));
-
-        // --- SECCIÓN 6: TOTALES Y PAGO ---
-        PdfPTable tablaTotales = new PdfPTable(2);
-        tablaTotales.setWidthPercentage(100);
-        tablaTotales.setWidths(new float[]{6f, 4f}); // Columna etiqueta vs Columna valor
-
-        // Recuperamos valores seguros (evitando nulos)
-        Double total = (venta.getMontoTotal() != null) ? venta.getMontoTotal() : 0.0;
-        Double descuento = (venta.getDescuento() != null) ? venta.getDescuento() : 0.0;
-        Double pagado = (venta.getMontoPago() != null) ? venta.getMontoPago() : 0.0;
-        Double vuelto = (venta.getVuelto() != null) ? venta.getVuelto() : 0.0;
-        String metodo = (venta.getMetodoPago() != null) ? venta.getMetodoPago() : "Efectivo";
-
-        // Filas de totales
-        agregarFilaTotal(tablaTotales, "Descuento:", "S/. " + String.format("%.2f", descuento), fontNormal);
-        agregarFilaTotal(tablaTotales, "TOTAL A PAGAR:", "S/. " + String.format("%.2f", total), fontTitulo);
+        document.add(tProd);
         
-        document.add(tablaTotales);
-        document.add(new Paragraph("\n")); // Pequeño espacio
+        Paragraph pSep4 = new Paragraph(separadorLinea, fCourier);
+        pSep4.setAlignment(Element.ALIGN_CENTER);
+        document.add(pSep4);
 
-        // Filas de información de pago
-        PdfPTable tablaPago = new PdfPTable(2);
-        tablaPago.setWidthPercentage(100);
-        tablaPago.setWidths(new float[]{6f, 4f});
-        
-        agregarFilaTotal(tablaPago, "Método de Pago:", metodo, fontNormal);
-        agregarFilaTotal(tablaPago, "Pago con:", "S/. " + String.format("%.2f", pagado), fontNormal);
-        agregarFilaTotal(tablaPago, "Cambio / Vuelto:", "S/. " + String.format("%.2f", vuelto), fontNormal);
-        
-        document.add(tablaPago);
+        // --- SECCIÓN 6: TOTALES ---
+        PdfPTable tTotal = new PdfPTable(2);
+        tTotal.setWidthPercentage(100);
+        tTotal.setWidths(new float[]{4f, 6f});
 
-        // --- PIE DE PÁGINA ---
-        Paragraph pFooter = new Paragraph("\n¡Gracias por su compra!\nConserve este ticket.", fontPie);
-        pFooter.setAlignment(Element.ALIGN_CENTER);
-        document.add(pFooter);
+        Double total = venta.getMontoTotal() != null ? venta.getMontoTotal() : 0.0;
+        Double descuento = venta.getDescuento() != null ? venta.getDescuento() : 0.0;
+
+        if (descuento > 0) {
+            agregarFilaTotal(tTotal, "SUBTOTAL:", String.format("S/. %.2f", total + descuento), fTituloNormal);
+            agregarFilaTotal(tTotal, "DESCUENTO:", String.format("- S/. %.2f", descuento), fTituloNormal);
+        }
+
+        // Espacio vacío
+        tTotal.addCell(celda(" ", fTituloNormal, Element.ALIGN_CENTER));
+        tTotal.addCell(celda(" ", fTituloNormal, Element.ALIGN_CENTER));
+
+        // TOTAL GRANDE
+        PdfPCell lTotal = celda("TOTAL A PAGAR:", fTotalLabel, Element.ALIGN_RIGHT);
+        lTotal.setVerticalAlignment(Element.ALIGN_BOTTOM);
+        tTotal.addCell(lTotal);
+
+        PdfPCell vTotal = celda("S/. " + String.format("%.2f", total), fTotalValue, Element.ALIGN_RIGHT);
+        tTotal.addCell(vTotal);
+
+        document.add(tTotal);
+        document.add(new Paragraph("\n"));
+
+        // --- SECCIÓN 7: PAGO ---
+        PdfPTable tPago = new PdfPTable(2);
+        tPago.setWidthPercentage(100);
+        tPago.setWidths(new float[]{5f, 5f});
+
+        String metodo = venta.getMetodoPago() != null ? venta.getMetodoPago().toUpperCase() : "EFECTIVO";
+        Double pago = venta.getMontoPago() != null ? venta.getMontoPago() : 0.0;
+        Double vuelto = venta.getVuelto() != null ? venta.getVuelto() : 0.0;
+
+        agregarFilaTotal(tPago, "FORMA PAGO:", metodo, fNegrita);
+        if(pago > 0) {
+            agregarFilaTotal(tPago, "PAGADO CON:", String.format("S/. %.2f", pago), fTituloNormal);
+            agregarFilaTotal(tPago, "SU CAMBIO:", String.format("S/. %.2f", vuelto), fNegrita);
+        }
+        document.add(tPago);
+
+        // --- PIE ---
+        Paragraph pSep5 = new Paragraph(separadorDoble, fCourier);
+        pSep5.setAlignment(Element.ALIGN_CENTER);
+        document.add(pSep5);
+
+        Paragraph pie = new Paragraph("¡GRACIAS POR SU COMPRA!", fPie);
+        pie.setAlignment(Element.ALIGN_CENTER);
+        document.add(pie);
 
         document.close();
     }
 
-    // --- MÉTODOS AUXILIARES ---
+    // --- MÉTODOS AYUDA ---
 
-    // Crea una celda sin bordes para que la tabla se vea limpia en el ticket
-    private PdfPCell celdaSinBorde(String texto, Font fuente, int alineacion) {
-        PdfPCell cell = new PdfPCell(new Phrase(texto, fuente));
-        cell.setBorder(Rectangle.NO_BORDER);
-        cell.setHorizontalAlignment(alineacion);
-        cell.setPadding(2);
-        return cell;
+    private PdfPCell celda(String txt, Font f, int align) {
+        PdfPCell c = new PdfPCell(new Phrase(txt, f));
+        c.setBorder(Rectangle.NO_BORDER);
+        c.setHorizontalAlignment(align);
+        c.setPaddingBottom(2);
+        return c;
     }
 
-    // Agrega fila de totales (Etiqueta a la derecha, Valor a la derecha)
-    private void agregarFilaTotal(PdfPTable tabla, String etiqueta, String valor, Font fuente) {
-        PdfPCell c1 = new PdfPCell(new Phrase(etiqueta, fuente));
+    private void agregarFilaInfo(PdfPTable t, String label, String val, Font fL, Font fV) {
+        PdfPCell c1 = new PdfPCell(new Phrase(label, fL));
+        c1.setBorder(Rectangle.NO_BORDER);
+        c1.setHorizontalAlignment(Element.ALIGN_LEFT);
+        
+        PdfPCell c2 = new PdfPCell(new Phrase(val, fV));
+        c2.setBorder(Rectangle.NO_BORDER);
+        c2.setHorizontalAlignment(Element.ALIGN_LEFT); // Datos cliente a la izquierda
+        
+        t.addCell(c1);
+        t.addCell(c2);
+    }
+
+    private void agregarFilaTotal(PdfPTable t, String label, String val, Font f) {
+        PdfPCell c1 = new PdfPCell(new Phrase(label, f));
         c1.setBorder(Rectangle.NO_BORDER);
         c1.setHorizontalAlignment(Element.ALIGN_RIGHT);
         
-        PdfPCell c2 = new PdfPCell(new Phrase(valor, fuente));
+        PdfPCell c2 = new PdfPCell(new Phrase(val, f));
         c2.setBorder(Rectangle.NO_BORDER);
         c2.setHorizontalAlignment(Element.ALIGN_RIGHT);
         
-        tabla.addCell(c1);
-        tabla.addCell(c2);
+        t.addCell(c1);
+        t.addCell(c2);
     }
 }
