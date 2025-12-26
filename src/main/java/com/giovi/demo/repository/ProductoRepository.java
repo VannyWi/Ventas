@@ -24,5 +24,5 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
     int reducirStock(@Param("id") Long id, @Param("cantidad") Integer cantidad);
     
     List<Producto> findByStockLessThan(Integer cantidadCritica);
-    List<Producto> findByStockLessThanAndEstadoTrue(Integer cantidadCritica);
+    List<Producto> findByStockLessThanAndActivoTrue(Integer cantidadCritica);
 }
