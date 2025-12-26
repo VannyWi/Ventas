@@ -32,20 +32,28 @@
                             <table class="table table-bordered table-striped table-hover m-0 align-middle" id="tablaTiendas">
                                 <thead class="table-dark sticky-top">
                                     <tr>
-                                        <th style="width: 10%;">ID</th>
+                                        <th style="width: 5%;">ID</th>
                                         <th>Nombre</th>
+                                        <th>RUC</th>
+                                        <th>Celular</th>
                                         <th>Dirección</th>
-                                        <th style="width: 20%;" class="text-center">Acciones</th>
+                                        <th style="width: 15%;" class="text-center">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr th:each="t : ${listaTiendas}">
                                         <td th:text="${t.id}"></td>
                                         <td th:text="${t.nombre}" class="fw-bold"></td>
+                                        <td th:text="${t.ruc}"></td>
+                                        <td th:text="${t.celular}"></td>
                                         <td th:text="${t.direccion}"></td>
                                         <td class="text-center">
                                             <button type="button" class="btn btn-warning btn-sm me-1" 
-                                                    th:data-id="${t.id}" th:data-nombre="${t.nombre}" th:data-direccion="${t.direccion}"
+                                                    th:data-id="${t.id}" 
+                                                    th:data-nombre="${t.nombre}" 
+                                                    th:data-direccion="${t.direccion}"
+                                                    th:data-ruc="${t.ruc}"
+                                                    th:data-celular="${t.celular}"
                                                     onclick="cargarFormulario(this)" title="Editar">
                                                 <i class="bi bi-pencil-square"></i>
                                             </button>
@@ -56,7 +64,7 @@
                                         </td>
                                     </tr>
                                     <tr th:if="${#lists.isEmpty(listaTiendas)}">
-                                        <td colspan="4" class="text-center text-muted">No hay tiendas registradas</td>
+                                        <td colspan="6" class="text-center text-muted">No hay tiendas registradas</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -73,14 +81,37 @@
                     <div class="card-body">
                         <form th:action="@{/tiendas/guardar}" th:object="${tienda}" method="post" id="formTienda">
                             <input type="hidden" th:field="*{id}" id="idTienda" />
+                            
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Nombre de Sucursal:</label>
+                                <label class="form-label fw-bold">Nombre de Sucursal: <span class="text-danger">*</span></label>
                                 <input type="text" th:field="*{nombre}" id="nombreTienda" class="form-control" placeholder="Ej: Sede Central" required />
                             </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">RUC: <span class="text-danger">*</span></label>
+                                <input type="text" th:field="*{ruc}" id="rucTienda" class="form-control" 
+                                       placeholder="Ingrese RUC" 
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                                       required />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Celular: <span class="text-danger">*</span></label>
+                                <input type="text" th:field="*{celular}" id="celularTienda" class="form-control" 
+                                       placeholder="999999999" 
+                                       maxlength="9" 
+                                       minlength="9" 
+                                       pattern="[0-9]{9}"
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                                       required />
+                                <small class="text-muted" style="font-size: 0.8em;">Debe tener 9 dígitos</small>
+                            </div>
+
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Dirección:</label>
                                 <input type="text" th:field="*{direccion}" id="direccionTienda" class="form-control" placeholder="Ej: Av. Principal 123" />
                             </div>
+
                             <div class="d-grid gap-2">
                                 <button type="submit" class="btn btn-success"><i class="bi bi-save me-2"></i>Guardar Tienda</button>
                                 <button type="button" class="btn btn-secondary" onclick="limpiarFormulario()"><i class="bi bi-eraser me-2"></i>Limpiar</button>
@@ -113,13 +144,11 @@
             else if(mensaje === 'eliminado') {
                 titulo = "Eliminado"; texto = "Tienda borrada correctamente."; icono = "success";
             }
-            // --- AQUÍ ESTÁ EL MENSAJE QUE QUERÍAS ---
             else if(mensaje === 'tiene_datos') {
                 titulo = "No se puede eliminar";
                 texto = "Esta tienda tiene una entidad asociada (productos o usuarios).";
                 icono = "error";
             }
-            // ----------------------------------------
             else if(mensaje === 'duplicado_nombre') {
                 titulo = "Nombre duplicado"; texto = "Ya existe una tienda con ese nombre."; icono = "warning";
             }
@@ -133,14 +162,22 @@
             Swal.fire(titulo, texto, icono);
         }
 
-        // FUNCIONES
+        // FUNCIONES JAVASCRIPT
         function cargarFormulario(boton) {
             var id = boton.getAttribute("data-id");
             var nombre = boton.getAttribute("data-nombre");
             var direccion = boton.getAttribute("data-direccion");
+            var ruc = boton.getAttribute("data-ruc");
+            var celular = boton.getAttribute("data-celular");
+
             document.getElementById('idTienda').value = id;
             document.getElementById('nombreTienda').value = nombre;
             document.getElementById('direccionTienda').value = direccion;
+            
+            // Si viene nulo del backend, ponemos vacío
+            document.getElementById('rucTienda').value = (ruc === 'null') ? '' : ruc;
+            document.getElementById('celularTienda').value = (celular === 'null') ? '' : celular;
+
             document.getElementById('nombreTienda').focus();
             document.querySelector('.col-md-4 .card').classList.add('border-warning');
         }

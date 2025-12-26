@@ -1,7 +1,7 @@
 package com.giovi.demo.entity;
 
 import jakarta.persistence.*;
-import com.fasterxml.jackson.annotation.JsonIgnore; // <--- ESTA IMPORTACIÓN ES CRUCIAL
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 
 @Entity
@@ -16,13 +16,19 @@ public class Tienda {
     
     private String direccion;
 
-    // --- AQUÍ ESTÁ LA SOLUCIÓN ---
-    // Agregamos @JsonIgnore para romper el bucle infinito con Usuarios
+    // --- NUEVOS CAMPOS OBLIGATORIOS ---
+    @Column(nullable = false)
+    private String ruc;
+
+    @Column(nullable = false)
+    private String celular;
+    // ----------------------------------
+
+    // Relaciones para romper bucles infinitos
     @OneToMany(mappedBy = "tienda")
     @JsonIgnore 
     private List<Usuario> empleados;
 
-    // Agregamos @JsonIgnore para romper el bucle infinito con Productos
     @OneToMany(mappedBy = "tienda")
     @JsonIgnore 
     private List<Producto> inventario;
@@ -30,14 +36,17 @@ public class Tienda {
     public Tienda() {
     }
 
-    public Tienda(Long id, String nombre, String direccion, List<Usuario> empleados, List<Producto> inventario) {
+    public Tienda(Long id, String nombre, String direccion, String ruc, String celular, List<Usuario> empleados, List<Producto> inventario) {
         this.id = id;
         this.nombre = nombre;
         this.direccion = direccion;
+        this.ruc = ruc;
+        this.celular = celular;
         this.empleados = empleados;
         this.inventario = inventario;
     }
 
+    // Getters y Setters
     public Long getId() {
         return id;
     }
@@ -60,6 +69,22 @@ public class Tienda {
 
     public void setDireccion(String direccion) {
         this.direccion = direccion;
+    }
+
+    public String getRuc() {
+        return ruc;
+    }
+
+    public void setRuc(String ruc) {
+        this.ruc = ruc;
+    }
+
+    public String getCelular() {
+        return celular;
+    }
+
+    public void setCelular(String celular) {
+        this.celular = celular;
     }
 
     public List<Usuario> getEmpleados() {
