@@ -32,15 +32,17 @@ public class VentaPdfService {
         Font fTituloNormal = FontFactory.getFont(FontFactory.HELVETICA, 9);        
         Font fNegrita = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);        
         
-        Font fCourier = FontFactory.getFont(FontFactory.COURIER, 10);
-        Font fCourierBold = FontFactory.getFont(FontFactory.COURIER_BOLD, 9);
+        // --- CORRECCIÓN 1: TAMAÑO DE LETRA ---
+        // Bajamos a 8 para asegurar que los precios (ej. 1200.00) entren en una sola línea
+        Font fCourier = FontFactory.getFont(FontFactory.COURIER, 8);
+        Font fCourierBold = FontFactory.getFont(FontFactory.COURIER_BOLD, 8);
 
         Font fTotalLabel = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
         Font fTotalValue = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15);
         Font fPie = FontFactory.getFont(FontFactory.HELVETICA, 7);
 
-        String separadorLinea = "------------------------------------"; 
-        String separadorDoble = "====================================";
+        String separadorLinea = "--------------------------------------------"; 
+        String separadorDoble = "============================================";
 
         // --- SECCIÓN 1: LOGO ---
         try {
@@ -100,7 +102,9 @@ public class VentaPdfService {
         // --- SECCIÓN 4: CLIENTE ---
         PdfPTable tCliente = new PdfPTable(2);
         tCliente.setWidthPercentage(100);
-        tCliente.setWidths(new float[]{2f, 8f}); 
+        // --- CORRECCIÓN 2: ESPACIO PARA ETIQUETAS ---
+        // Aumentamos la primera columna (3.5f) para que "VENDEDOR:" entre cómodo
+        tCliente.setWidths(new float[]{3.5f, 6.5f}); 
 
         String nomCli = (venta.getCliente() != null) ? venta.getCliente().getNombre().toUpperCase() : "PUBLICO GENERAL";
         String dniCli = (venta.getCliente() != null && venta.getCliente().getDni() != null) ? venta.getCliente().getDni() : "-";
@@ -119,7 +123,9 @@ public class VentaPdfService {
         // --- SECCIÓN 5: PRODUCTOS ---
         PdfPTable tProd = new PdfPTable(4); 
         tProd.setWidthPercentage(100);
-        tProd.setWidths(new float[]{1.3f, 4.2f, 2f, 2.5f}); 
+        // --- CORRECCIÓN 3: ANCHOS DE COLUMNA ---
+        // Ajustamos para dar un poco más de espacio al P.Unit (2.2f) quitando a Desc
+        tProd.setWidths(new float[]{1.2f, 4.1f, 2.2f, 2.5f}); 
 
         tProd.addCell(celda("CANT", fCourierBold, Element.ALIGN_CENTER));
         tProd.addCell(celda("DESCRIPCION", fCourierBold, Element.ALIGN_LEFT));
@@ -130,7 +136,7 @@ public class VentaPdfService {
         if (detalles != null) {
             for (DetalleVenta d : detalles) {
                 String desc = (d.getProducto() != null) ? d.getProducto().getNombre() : "-";
-                if(desc.length() > 22) desc = desc.substring(0, 22);
+                if(desc.length() > 20) desc = desc.substring(0, 20); // Recorte preventivo
 
                 Double precio = (d.getPrecioUnitario() != null) ? d.getPrecioUnitario() : 0.0;
                 Double sub = (d.getSubtotal() != null) ? d.getSubtotal() : 0.0;
