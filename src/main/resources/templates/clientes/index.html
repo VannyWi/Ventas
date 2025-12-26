@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Gestión de Clientes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-light">
+<div th:replace="~{layout/fragments :: navbarAdmin}"></div>
+    <div class="container-fluid px-4 mt-4">
+        <div class="row">
+            
+            <div class="col-md-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white py-3">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="m-0 font-weight-bold text-dark">Clientes Registrados</h5>
+                            </div>
+                            <div class="col">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="text" id="searchInput" class="form-control" placeholder="Buscar por nombre o DNI...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                            <table class="table table-bordered table-striped table-hover m-0 align-middle" id="tablaClientes">
+                                <thead class="table-dark sticky-top">
+                                    <tr>
+                                        <th style="width: 10%;">ID</th>
+                                        <th style="width: 20%;">DNI</th>
+                                        <th>Nombre Completo</th>
+                                        <th style="width: 15%;" class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="c : ${listaClientes}">
+                                        <td th:text="${c.id}"></td>
+                                        <td th:text="${c.dni}" class="fw-bold"></td>
+                                        <td th:text="${c.nombre}"></td>
+                                        <td class="text-center">
+                                            <button type="button" 
+                                                    class="btn btn-warning btn-sm" 
+                                                    th:data-id="${c.id}" 
+                                                    th:data-dni="${c.dni}"
+                                                    th:data-nombre="${c.nombre}"
+                                                    onclick="cargarFormulario(this)"
+                                                    title="Editar">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                            </td>
+                                    </tr>
+                                    <tr th:if="${#lists.isEmpty(listaClientes)}">
+                                        <td colspan="4" class="text-center text-muted">No hay clientes registrados</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card shadow mb-4 sticky-top" style="top: 20px; z-index: 100;">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="m-0"><i class="bi bi-person-badge me-2"></i>Gestión de Cliente</h5>
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/clientes/guardar}" th:object="${cliente}" method="post" id="formCliente">
+                            
+                            <input type="hidden" th:field="*{id}" id="idCliente" />
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">DNI:</label>
+                                <input type="text" th:field="*{dni}" id="dniCliente" class="form-control" 
+                                       required maxlength="8" 
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 8)" 
+                                       placeholder="8 dígitos" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Nombre Completo:</label>
+                                <input type="text" th:field="*{nombre}" id="nombreCliente" class="form-control" 
+                                       required 
+                                       oninput="this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')" 
+                                       placeholder="Solo letras" />
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-save me-2"></i>Guardar Cliente
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="limpiarFormulario()">
+                                    <i class="bi bi-eraser me-2"></i>Limpiar / Cancelar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        // 1. GESTIÓN DE ALERTAS (Coinciden con ClienteController)
+        var mensaje = /*[[${mensaje}]]*/ null;
+        var tipo = /*[[${tipo}]]*/ null;
+
+        if(mensaje) {
+            let titulo = "Notificación";
+            let texto = "";
+
+            if(mensaje === 'guardado') { titulo = "¡Registrado!"; texto = "Cliente creado con éxito"; }
+            else if(mensaje === 'editado') { titulo = "¡Actualizado!"; texto = "Cliente modificado correctamente"; }
+            else if(mensaje === 'duplicado') { titulo = "¡Atención!"; texto = "El DNI ya pertenece a otro cliente."; }
+            else if(mensaje === 'error') { titulo = "Error"; texto = "Ocurrió un error inesperado"; }
+
+            Swal.fire({
+                title: titulo,
+                text: texto,
+                icon: tipo || 'info',
+                confirmButtonText: 'OK'
+            });
+        }
+
+        // 2. CARGAR DATOS AL FORMULARIO (Desde el botón editar)
+        function cargarFormulario(boton) {
+            var id = boton.getAttribute("data-id");
+            var dni = boton.getAttribute("data-dni");
+            var nombre = boton.getAttribute("data-nombre");
+
+            document.getElementById('idCliente').value = id;
+            document.getElementById('dniCliente').value = dni;
+            document.getElementById('nombreCliente').value = nombre;
+
+            // Foco visual para indicar que se está editando
+            document.getElementById('nombreCliente').focus();
+            document.querySelector('.col-md-4 .card').classList.add('border-warning');
+        }
+
+        // 3. LIMPIAR FORMULARIO
+        function limpiarFormulario() {
+            document.getElementById('idCliente').value = '';
+            document.getElementById('dniCliente').value = '';
+            document.getElementById('nombreCliente').value = '';
+            
+            // Quitar borde de edición
+            document.querySelector('.col-md-4 .card').classList.remove('border-warning');
+            document.getElementById('dniCliente').focus();
+        }
+
+        // 4. BUSCADOR EN TIEMPO REAL (Cliente side)
+        document.getElementById('searchInput').addEventListener('keyup', function() {
+            var value = this.value.toLowerCase();
+            var rows = document.querySelectorAll('#tablaClientes tbody tr');
+            
+            rows.forEach(function(row) {
+                // Busca en todo el texto de la fila (ID, DNI, Nombre)
+                row.style.display = row.textContent.toLowerCase().includes(value) ? '' : 'none';
+            });
+        });
+        /*]]>*/
+        
+        if (mensaje === 'dni_invalido') { titulo="Error"; texto="El DNI debe tener exactamente 8 números."; icon="warning"; }
+else if (mensaje === 'nombre_invalido') { titulo="Error"; texto="El nombre solo puede contener letras."; icon="warning"; }
+    </script>
+</body>
+</html>

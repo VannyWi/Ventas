@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Gestión de Tiendas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-light">
+
+    <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
+
+    <div class="container-fluid px-4">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white py-3">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="m-0 font-weight-bold text-dark">Sucursales Registradas</h5>
+                            </div>
+                            <div class="col">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                    <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="Buscar tienda...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                            <table class="table table-bordered table-striped table-hover m-0 align-middle" id="tablaTiendas">
+                                <thead class="table-dark sticky-top">
+                                    <tr>
+                                        <th style="width: 10%;">ID</th>
+                                        <th>Nombre</th>
+                                        <th>Dirección</th>
+                                        <th style="width: 20%;" class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="t : ${listaTiendas}">
+                                        <td th:text="${t.id}"></td>
+                                        <td th:text="${t.nombre}" class="fw-bold"></td>
+                                        <td th:text="${t.direccion}"></td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-warning btn-sm me-1" 
+                                                    th:data-id="${t.id}" th:data-nombre="${t.nombre}" th:data-direccion="${t.direccion}"
+                                                    onclick="cargarFormulario(this)" title="Editar">
+                                                <i class="bi bi-pencil-square"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-danger btn-sm"
+                                                    th:onclick="|confirmarEliminar(${t.id})|" title="Eliminar">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr th:if="${#lists.isEmpty(listaTiendas)}">
+                                        <td colspan="4" class="text-center text-muted">No hay tiendas registradas</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card shadow mb-4 sticky-top" style="top: 20px; z-index: 100;">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="m-0"><i class="bi bi-shop me-2"></i>Gestión</h5>
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/tiendas/guardar}" th:object="${tienda}" method="post" id="formTienda">
+                            <input type="hidden" th:field="*{id}" id="idTienda" />
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Nombre de Sucursal:</label>
+                                <input type="text" th:field="*{nombre}" id="nombreTienda" class="form-control" placeholder="Ej: Sede Central" required />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Dirección:</label>
+                                <input type="text" th:field="*{direccion}" id="direccionTienda" class="form-control" placeholder="Ej: Av. Principal 123" />
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success"><i class="bi bi-save me-2"></i>Guardar Tienda</button>
+                                <button type="button" class="btn btn-secondary" onclick="limpiarFormulario()"><i class="bi bi-eraser me-2"></i>Limpiar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        // 1. GESTIÓN DE ALERTAS
+        var mensaje = /*[[${mensaje}]]*/ null;
+
+        if(mensaje) {
+            let titulo = "Información";
+            let texto = "";
+            let icono = "info";
+
+            if(mensaje === 'guardado') {
+                titulo = "¡Registrado!"; texto = "Tienda creada con éxito."; icono = "success";
+            }
+            else if(mensaje === 'editado') {
+                titulo = "¡Actualizado!"; texto = "Datos modificados correctamente."; icono = "success";
+            }
+            else if(mensaje === 'eliminado') {
+                titulo = "Eliminado"; texto = "Tienda borrada correctamente."; icono = "success";
+            }
+            // --- AQUÍ ESTÁ EL MENSAJE QUE QUERÍAS ---
+            else if(mensaje === 'tiene_datos') {
+                titulo = "No se puede eliminar";
+                texto = "Esta tienda tiene una entidad asociada (productos o usuarios).";
+                icono = "error";
+            }
+            // ----------------------------------------
+            else if(mensaje === 'duplicado_nombre') {
+                titulo = "Nombre duplicado"; texto = "Ya existe una tienda con ese nombre."; icono = "warning";
+            }
+            else if(mensaje === 'duplicado_direccion') {
+                titulo = "Dirección duplicada"; texto = "Ya existe una tienda registrada en esa dirección."; icono = "warning";
+            }
+            else {
+                titulo = "Error"; texto = "Ocurrió un error inesperado."; icono = "error";
+            }
+
+            Swal.fire(titulo, texto, icono);
+        }
+
+        // FUNCIONES
+        function cargarFormulario(boton) {
+            var id = boton.getAttribute("data-id");
+            var nombre = boton.getAttribute("data-nombre");
+            var direccion = boton.getAttribute("data-direccion");
+            document.getElementById('idTienda').value = id;
+            document.getElementById('nombreTienda').value = nombre;
+            document.getElementById('direccionTienda').value = direccion;
+            document.getElementById('nombreTienda').focus();
+            document.querySelector('.col-md-4 .card').classList.add('border-warning');
+        }
+
+        function limpiarFormulario() {
+            document.getElementById('formTienda').reset();
+            document.getElementById('idTienda').value = '';
+            document.querySelector('.col-md-4 .card').classList.remove('border-warning');
+            document.getElementById('nombreTienda').focus();
+        }
+
+        function confirmarEliminar(id) {
+            Swal.fire({
+                title: '¿Eliminar Sucursal?',
+                text: "Si no tiene datos asociados, se borrará permanentemente.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = "/tiendas/eliminar/" + id;
+                }
+            })
+        }
+
+        document.getElementById('searchInput').addEventListener('keyup', function() {
+            var value = this.value.toLowerCase();
+            document.querySelectorAll('#tablaTiendas tbody tr').forEach(function(row) {
+                row.style.display = row.textContent.toLowerCase().includes(value) ? '' : 'none';
+            });
+        });
+        /*]]>*/
+    </script>
+</body>
+</html>

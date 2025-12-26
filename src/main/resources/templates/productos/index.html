@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Gestión de Productos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+</head>
+<body class="bg-light">
+    
+    <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
+
+    <div class="container-fluid px-4">
+        <div class="row">
+            
+            <div class="col-md-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white py-3">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="m-0 font-weight-bold text-success">Listado Global</h5>
+                            </div>
+                            <div class="col">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                    <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="Buscar producto...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 650px; overflow-y: auto;">
+                            <table class="table table-bordered table-striped table-hover m-0 align-middle" id="tablaProductos">
+                                <thead class="table-dark sticky-top">
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Nombre</th>
+                                        <th>Precio</th>
+                                        <th>Stock</th>
+                                        <th>Tienda</th>
+                                        <th>Categoría</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="p : ${listaProductos}" 
+                                        th:classappend="${!p.activo} ? 'table-secondary text-muted' : ''">
+                                        
+                                        <td th:text="${p.codigoBarras}" class="font-monospace text-primary small"></td>
+                                        
+                                        <td>
+                                            <span th:if="${p.activo}" th:text="${p.nombre}" class="fw-bold"></span>
+                                            <del th:if="${!p.activo}" th:text="${p.nombre}"></del>
+                                        </td>
+
+                                        <td th:text="'S/ ' + ${p.precio}"></td>
+                                        
+                                        <td th:text="${p.stock}" 
+                                            th:classappend="${p.stock < 10} ? 'text-danger fw-bold' : ''">
+                                        </td>
+                                        
+                                        <td th:text="${p.tienda.nombre}" class="small text-muted"></td>
+                                        <td th:text="${p.categoria.nombre}" class="small text-muted"></td>
+                                        
+                                        <td class="text-center">
+                                            <span th:if="${p.activo}" class="badge bg-success rounded-pill">Activo</span>
+                                            <span th:if="${!p.activo}" class="badge bg-secondary rounded-pill">Inactivo</span>
+                                        </td>
+                                        
+                                        <td class="text-center">
+                                            <div th:if="${p.activo}">
+                                                <button type="button" 
+                                                        class="btn btn-warning btn-sm me-1" 
+                                                        th:data-id="${p.id}" 
+                                                        th:data-codigo="${p.codigoBarras}"
+                                                        th:data-nombre="${p.nombre}"
+                                                        th:data-precio="${p.precio}"
+                                                        th:data-stock="${p.stock}"
+                                                        th:data-tienda="${p.tienda.id}"
+                                                        th:data-categoria="${p.categoria.id}"
+                                                        onclick="cargarFormulario(this)"
+                                                        title="Editar">
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </button>
+
+                                                <button type="button" 
+                                                        class="btn btn-danger btn-sm"
+                                                        th:onclick="|confirmarDesactivar(${p.id})|"
+                                                        title="Desactivar">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+
+                                            <div th:if="${!p.activo}">
+                                                <button type="button"
+                                                        class="btn btn-outline-success btn-sm w-100"
+                                                        th:onclick="|confirmarReactivar(${p.id})|"
+                                                        title="Recuperar">
+                                                    <i class="bi bi-arrow-counterclockwise"></i> Reactivar
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card shadow mb-4 sticky-top" style="top: 20px; z-index: 100;">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="m-0"><i class="bi bi-box-seam-fill me-2"></i>Gestión de Producto</h5>
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/productos/guardar}" th:object="${producto}" method="post" id="formProducto">
+                            <input type="hidden" th:field="*{id}" id="idProducto" />
+                            <input type="hidden" th:field="*{activo}" id="activoProducto" />
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-uppercase text-muted">Ubicación</label>
+                                <select th:field="*{tienda}" id="tiendaProducto" class="form-select" required>
+                                    <option value="">-- Seleccione Tienda --</option>
+                                    <option th:each="t : ${listaTiendas}" th:value="${t.id}" th:text="${t.nombre}"></option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-uppercase text-muted">Clasificación</label>
+                                <select th:field="*{categoria}" id="categoriaProducto" class="form-select" required>
+                                    <option value="">-- Seleccione Categoría --</option>
+                                    <option th:each="c : ${listaCategorias}" th:value="${c.id}" th:text="${c.nombre}"></option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Código de Barras:</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+                                    <input type="text" th:field="*{codigoBarras}" id="codigoProducto" class="form-control" placeholder="Ej: 7750..." required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Nombre del Producto:</label>
+                                <input type="text" th:field="*{nombre}" id="nombreProducto" class="form-control" placeholder="Ej: Coca Cola 1L" required>
+                            </div>
+
+                            <div class="row">
+                                <div class="col mb-3">
+                                    <label class="form-label fw-bold">Precio (S/):</label>
+                                    <input type="number" step="0.01" min="0" th:field="*{precio}" id="precioProducto" class="form-control" required>
+                                </div>
+                                <div class="col mb-3">
+                                    <label class="form-label fw-bold">Stock Inicial:</label>
+                                    <input type="number" min="0" th:field="*{stock}" id="stockProducto" class="form-control" required>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-save me-2"></i>Guardar
+                                </button>
+                                <button type="button" class="btn btn-light border" onclick="limpiarFormulario()">
+                                    <i class="bi bi-eraser me-2"></i>Limpiar
+                                </button>
+                                
+                                <hr class="my-2">
+                                
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalStock">
+                                    <i class="bi bi-boxes me-2"></i>Abastecer Stock
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalStock" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-plus-square-fill me-2"></i>Abastecer Inventario</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">1. Seleccionar Tienda</label>
+                        <select class="form-select" id="stockTiendaSelect">
+                            <option value="">-- Seleccione tienda primero --</option>
+                            <option th:each="t : ${listaTiendas}" th:value="${t.id}" th:text="${t.nombre}"></option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">2. Código de Barras</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="stockCodigoInput" placeholder="Ingrese código..." disabled>
+                            <button class="btn btn-primary" type="button" id="stockBtnBuscar" disabled>
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                        <small id="stockErrorMsg" class="text-danger fw-bold mt-1" style="display:none;"></small>
+                    </div>
+
+                    <div id="stockInfoProducto" class="p-3 mb-3 bg-light border rounded shadow-sm" style="display:none;">
+                        <input type="hidden" id="stockIdProducto">
+                        <div class="mb-2 border-bottom pb-2">
+                            <label class="text-muted small">Producto encontrado:</label>
+                            <strong class="d-block fs-5 text-dark" id="stockNombreProducto"></strong>
+                        </div>
+                        <div class="row text-center mb-3">
+                            <div class="col border-end">
+                                <small class="text-muted">Precio</small><br>
+                                <span class="fw-bold" id="stockPrecioProducto"></span>
+                            </div>
+                            <div class="col">
+                                <small class="text-muted">Stock Actual</small><br>
+                                <span class="fw-bold text-primary" id="stockActualProducto"></span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-success">Cantidad a sumar (+)</label>
+                            <input type="number" class="form-control border-success" id="stockCantidadInput" min="1" placeholder="Ej: 50">
+                        </div>
+                        <div class="d-grid">
+                            <button type="button" class="btn btn-success fw-bold" id="stockBtnGuardar">
+                                <i class="bi bi-check-lg me-2"></i>Confirmar Ingreso
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        // 1. GESTIÓN DE ALERTAS
+        var mensaje = /*[[${mensaje}]]*/ null;
+        if(mensaje) {
+            let titulo = "", texto = "", icono = "info";
+            
+            if(mensaje === 'guardado') { 
+                titulo='¡Registrado!'; texto='Producto agregado.'; icono='success'; 
+            }
+            else if(mensaje === 'editado') { 
+                titulo='¡Actualizado!'; texto='Producto modificado.'; icono='success'; 
+            }
+            else if(mensaje === 'eliminado') { 
+                titulo='Desactivado'; texto='Producto inactivo.'; icono='warning'; 
+            }
+            else if(mensaje === 'reactivado') { 
+                titulo='¡Recuperado!'; texto='Producto activo.'; icono='success'; 
+            }
+            else if(mensaje === 'duplicado_nombre') { 
+                titulo='Error'; texto='Nombre duplicado en la tienda.'; icono='error'; 
+            }
+            else if(mensaje === 'duplicado_codigo') { 
+                titulo='Error'; texto='Código duplicado en la tienda.'; icono='error'; 
+            }
+            else if(mensaje === 'negativo') { 
+                titulo='¡Cuidado!'; texto='El precio y el stock no pueden ser negativos.'; icono='warning'; 
+            }
+            else { 
+                titulo='Error'; texto='Ocurrió un error inesperado.'; icono='error'; 
+            }
+            
+            Swal.fire(titulo, texto, icono);
+        }
+
+        // 2. FUNCIÓN CARGAR FORMULARIO (PARA EDITAR)
+        function cargarFormulario(boton) {
+            document.getElementById('idProducto').value = boton.getAttribute("data-id");
+            document.getElementById('codigoProducto').value = boton.getAttribute("data-codigo");
+            document.getElementById('nombreProducto').value = boton.getAttribute("data-nombre");
+            document.getElementById('precioProducto').value = boton.getAttribute("data-precio");
+            document.getElementById('stockProducto').value = boton.getAttribute("data-stock");
+            document.getElementById('tiendaProducto').value = boton.getAttribute("data-tienda");
+            document.getElementById('categoriaProducto').value = boton.getAttribute("data-categoria");
+            document.getElementById('activoProducto').value = "true"; 
+            
+            document.getElementById('nombreProducto').focus();
+            // Efecto visual de borde
+            document.querySelector('.col-md-4 .card').classList.add('border-warning');
+        }
+
+        function limpiarFormulario() {
+            document.getElementById('formProducto').reset();
+            document.getElementById('idProducto').value = '';
+            document.querySelector('.col-md-4 .card').classList.remove('border-warning');
+        }
+
+        function confirmarDesactivar(id) {
+            Swal.fire({
+                title: '¿Desactivar?', text: "No se verá en ventas.", icon: 'warning',
+                showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí'
+            }).then((r) => { if (r.isConfirmed) window.location.href = "/productos/eliminar/" + id; })
+        }
+
+        function confirmarReactivar(id) {
+            Swal.fire({
+                title: '¿Reactivar?', text: "Volverá a estar disponible.", icon: 'question',
+                showCancelButton: true, confirmButtonColor: '#198754', confirmButtonText: 'Sí'
+            }).then((r) => { if (r.isConfirmed) window.location.href = "/productos/reactivar/" + id; })
+        }
+
+        // 3. BUSCADOR EN TIEMPO REAL
+        document.getElementById('searchInput').addEventListener('keyup', function() {
+            var value = this.value.toLowerCase();
+            document.querySelectorAll('#tablaProductos tbody tr').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(value) ? '' : 'none';
+            });
+        });
+
+        // 4. LÓGICA DEL MODAL DE STOCK (AJAX)
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectTienda = document.getElementById('stockTiendaSelect');
+            const inputCodigo = document.getElementById('stockCodigoInput');
+            const btnBuscar = document.getElementById('stockBtnBuscar');
+            const errorMsg = document.getElementById('stockErrorMsg');
+            const divInfo = document.getElementById('stockInfoProducto');
+            const inputId = document.getElementById('stockIdProducto');
+            const txtNombre = document.getElementById('stockNombreProducto');
+            const txtPrecio = document.getElementById('stockPrecioProducto');
+            const txtStock = document.getElementById('stockActualProducto');
+            const inputCantidad = document.getElementById('stockCantidadInput');
+            const btnGuardar = document.getElementById('stockBtnGuardar');
+
+            selectTienda.addEventListener('change', function() {
+                if(this.value) {
+                    inputCodigo.disabled = false;
+                    btnBuscar.disabled = false;
+                    inputCodigo.focus();
+                } else {
+                    inputCodigo.disabled = true;
+                    btnBuscar.disabled = true;
+                    inputCodigo.value = '';
+                    ocultarInfo();
+                }
+            });
+
+            async function buscarProducto() {
+                const codigo = inputCodigo.value.trim();
+                const tiendaId = selectTienda.value;
+                if(!codigo || !tiendaId) return;
+
+                ocultarInfo();
+                errorMsg.style.display = 'none';
+
+                try {
+                    const res = await fetch(`/productos/api/buscar?codigo=${codigo}&tiendaId=${tiendaId}`);
+                    if(res.ok) {
+                        const prod = await res.json();
+                        inputId.value = prod.id;
+                        txtNombre.innerText = prod.nombre;
+                        txtPrecio.innerText = "S/ " + prod.precio;
+                        txtStock.innerText = prod.stock;
+                        divInfo.style.display = 'block';
+                        inputCantidad.value = '';
+                        inputCantidad.focus();
+                    } else {
+                        errorMsg.innerText = "Producto no encontrado en esta tienda.";
+                        errorMsg.style.display = 'block';
+                    }
+                } catch(e) {
+                    errorMsg.innerText = "Error de conexión.";
+                    errorMsg.style.display = 'block';
+                }
+            }
+
+            btnBuscar.addEventListener('click', buscarProducto);
+            inputCodigo.addEventListener('keypress', (e) => {
+                if(e.key === 'Enter') { e.preventDefault(); buscarProducto(); }
+            });
+
+            btnGuardar.addEventListener('click', async function() {
+                const id = inputId.value;
+                const cant = inputCantidad.value;
+
+                if(!cant || cant <= 0) {
+                    Swal.fire('Atención', 'Ingresa una cantidad válida', 'warning');
+                    return;
+                }
+
+                // Obtener Tokens CSRF
+                const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+                const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+                try {
+                    const formData = new FormData();
+                    formData.append('id', id);
+                    formData.append('cantidad', cant);
+
+                    const res = await fetch('/productos/api/stock/actualizar', {
+                        method: 'POST',
+                        headers: {
+                            [csrfHeader]: csrfToken
+                        },
+                        body: formData
+                    });
+
+                    if(res.ok) {
+                        Swal.fire({
+                            title: '¡Stock Actualizado!', text: 'Se guardó correctamente.', icon: 'success'
+                        }).then(() => { location.reload(); });
+                    } else {
+                        Swal.fire('Error', 'No se pudo guardar (Error ' + res.status + ')', 'error');
+                    }
+                } catch(e) {
+                    console.error(e);
+                    Swal.fire('Error', 'Error de conexión.', 'error');
+                }
+            });
+
+            function ocultarInfo() {
+                divInfo.style.display = 'none';
+                inputId.value = '';
+            }
+            
+            var myModalEl = document.getElementById('modalStock');
+            myModalEl.addEventListener('hidden.bs.modal', function () {
+                selectTienda.value = '';
+                inputCodigo.value = '';
+                inputCodigo.disabled = true;
+                btnBuscar.disabled = true;
+                errorMsg.style.display = 'none';
+                ocultarInfo();
+            });
+        });
+        /*]]>*/
+    </script>
+</body>
+</html>

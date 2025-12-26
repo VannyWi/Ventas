@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Portal Vendedores</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+</head>
+<body class="bg-light">
+
+  <div th:replace="~{layout/fragments :: navbarVendedor}"></div>
+
+    <div class="container mt-5">
+        <div class="p-5 mb-4 bg-white rounded-3 shadow-sm border">
+            <div class="container-fluid py-2">
+                <h1 class="display-5 fw-bold">Hola, <span th:text="${userLog.username}">User</span></h1>
+                <p class="col-md-8 fs-4">Estás asignado a la sucursal: <strong class="text-success" th:text="${userLog.tienda.nombre}">Tienda X</strong></p>
+                <button class="btn btn-primary btn-lg" type="button" onclick="location.href='/ventas/nueva'">
+                    <i class="bi bi-cart-plus"></i> Realizar Venta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

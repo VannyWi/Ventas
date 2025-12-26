@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+    <nav th:fragment="navbarAdmin" class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm mb-4">
+        <div class="container-fluid">
+            
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="bi bi-building me-2"></i>AMYNICO
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menuAdmin">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="menuAdmin">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" th:href="@{/homeadmin}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" th:href="@{/usuarios}"><i class="bi bi-people"></i> Usuarios</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" th:href="@{/clientes}"><i class="bi bi-person-add"></i> Clientes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" th:href="@{/productos}"><i class="bi bi-basket3"></i> Productos</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" th:href="@{/tiendas}"><i class="bi bi-shop"></i> Tiendas</a>
+                    </li>
+                      <li class="nav-item">
+                        <a class="nav-link" th:href="@{/categorias}"><i class="bi bi-tag"></i> Categorias</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-gear"></i> Configuración
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#">Reportes Globales</a></li>
+                            <li><a class="dropdown-item" href="#">Auditoría</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="text-end me-2 lh-1">
+                                <div class="fw-bold" 
+                                     th:text="${userLog != null ? (userLog.nombre + ' ' + userLog.apellido) : 'Administrador'}">
+                                     Nombre Admin
+                                </div>
+                                <small class="text-white-50" style="font-size: 0.75rem;">ADMINISTRADOR</small>
+                            </div>
+                            <i class="bi bi-person-circle fs-4"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow">
+                            <li><h6 class="dropdown-header">Detalles de Cuenta</h6></li>
+                            <li>
+                                <span class="dropdown-item-text">
+                                    <i class="bi bi-shop me-1"></i> 
+                                    <span th:text="${userLog != null ? userLog.tienda.nombre : 'Central'}">Central</span>
+                                </span>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                             
+                            <li>
+                                <a class="dropdown-item" th:href="@{/perfil}">
+                                    <i class="bi bi-person-gear me-2"></i> Editar Perfil
+                                </a>
+                            </li>
+                            <li>
+                                <form th:action="@{/logout}" method="post" class="px-2 py-1">
+                                    <button type="submit" class="btn btn-danger btn-sm w-100">
+                                        <i class="bi bi-box-arrow-right me-1"></i> Cerrar Sesión
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+
+    <nav th:fragment="navbarVendedor" class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm mb-4">
+        <div class="container-fluid">
+            
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="bi bi-basket3-fill me-2"></i>AMYNICO
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menuVendedor">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="menuVendedor">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" th:href="@{/homevendedores}"><i class="bi bi-house"></i> Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" th:href="@{/ventas/nueva}"><i class="bi bi-plus-circle"></i> Nueva Venta</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" th:href="@{/clientes}"><i class="bi bi-person-badge"></i> Clientes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" th:href="@{/productos}"><i class="bi bi-box-seam"></i> Inventario</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-list-check"></i> Mi Gestión
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#">Mis Ventas del Día</a></li>
+                            <li><a class="dropdown-item" href="#">Cierre de Caja</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="text-end me-2 lh-1">
+                                <div class="fw-bold" 
+                                     th:text="${userLog != null ? (userLog.nombre + ' ' + userLog.apellido) : 'Vendedor'}">
+                                     Nombre Vendedor
+                                </div>
+                                <small class="text-white-50" style="font-size: 0.75rem;">VENDEDOR</small>
+                            </div>
+                            <i class="bi bi-person-circle fs-4"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow">
+                            <li><h6 class="dropdown-header">Información</h6></li>
+                            <li>
+                                <span class="dropdown-item-text">
+                                    <i class="bi bi-shop me-1 text-primary"></i> 
+                                    <strong th:text="${userLog != null ? userLog.tienda.nombre : 'Sin Asignar'}">Tienda Centro</strong>
+                                </span>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            
+                            <li>
+                                <a class="dropdown-item" th:href="@{/perfil}">
+                                    <i class="bi bi-person-gear me-2"></i> Editar Perfil
+                                </a>
+                            </li>
+                            <li>
+                                <form th:action="@{/logout}" method="post" class="px-2 py-1">
+                                    <button type="submit" class="btn btn-danger btn-sm w-100">
+                                        <i class="bi bi-box-arrow-right me-1"></i> Cerrar Sesión
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+</body>
+</html>

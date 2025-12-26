@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/fragments}">
+<head>
+    <title>Punto de Venta</title>
+    <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
+    <style>
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .btn-limpiar { border-color: #dee2e6; color: #dc3545; }
+        .btn-limpiar:hover { background-color: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+<div layout:fragment="content" class="container-fluid mt-3">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="text-primary fw-bold"><i class="fas fa-cash-register"></i> Punto de Venta</h2>
+        <div class="badge bg-secondary fs-6 p-2 shadow-sm">
+            <i class="far fa-clock"></i> <span id="reloj">--:--:--</span>
+        </div>
+    </div>
+
+    <div id="flashMessages" th:data-mensaje="${mensaje}" th:data-producto="${productoError}"></div>
+
+    <div class="row">
+        <div class="col-md-7">
+            <div class="card shadow h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-search"></i> Catálogo</h5>
+                </div>
+                <div class="card-body">
+                    <div class="input-group mb-3">
+                        <span class="input-group-text"><i class="fas fa-barcode"></i></span>
+                        <input type="text" id="txtBuscar" class="form-control form-control-lg" 
+                               placeholder="Escanear código o nombre..." autofocus 
+                               onkeyup="if(event.key === 'Enter') buscarProductos()">
+                        
+                        <button class="btn btn-dark" type="button" onclick="buscarProductos()">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                        <button class="btn btn-limpiar" type="button" onclick="limpiarBusquedaProducto()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="table-responsive" style="height: 500px; overflow-y: auto;">
+                        <table class="table table-hover table-bordered align-middle">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Producto</th>
+                                    <th>Stock</th>
+                                    <th>Precio</th>
+                                    <th style="width: 90px;">Cant.</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaResultados">
+                                <th:block th:fragment="listaProductosFragment">
+                                    <tr th:each="p : ${listaProductos}">
+                                        <td th:text="${p.codigoBarras}"></td>
+                                        <td th:text="${p.nombre}" class="fw-bold"></td>
+                                        <td>
+                                            <span th:class="${p.stock < 5} ? 'badge bg-danger' : 'badge bg-success'" 
+                                                  th:text="${p.stock}"></span>
+                                        </td>
+                                        <td th:text="'S/ ' + ${p.precio}"></td>
+                                        <td>
+                                            <input type="number" value="1" min="1" th:max="${p.stock}" 
+                                                   class="form-control form-control-sm text-center px-1" 
+                                                   th:id="'inputCant_' + ${p.id}" oninput="validarPositivo(this)">
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-primary btn-sm" 
+                                                    th:onclick="agregarAlCarrito([[${p.id}]], [[${p.codigoBarras}]], [[${p.nombre}]], [[${p.precio}]], [[${p.stock}]])"
+                                                    th:disabled="${p.stock <= 0}">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr th:if="${#lists.isEmpty(listaProductos)}">
+                                        <td colspan="6" class="text-center text-muted py-5">
+                                            <i class="fas fa-search fa-2x mb-2"></i><br>Use el buscador...
+                                        </td>
+                                    </tr>
+                                </th:block>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <form th:action="@{/ventas/guardar}" method="post" id="formVenta">
+                
+                <div class="card shadow mb-3">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-user"></i> Cliente</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group mb-2">
+                            <input type="text" name="cliente_dni" id="clienteDni" class="form-control" 
+                                   placeholder="Ingrese DNI" required maxlength="8"
+                                   oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 8)"
+                                   onkeyup="if(event.key === 'Enter') buscarClienteDni()">
+                            
+                            <button class="btn btn-secondary" type="button" onclick="buscarClienteDni()">
+                                <i class="fas fa-search"></i>
+                            </button>
+
+                            <button class="btn btn-limpiar" type="button" onclick="limpiarBusquedaCliente()" title="Limpiar">
+                                <i class="fas fa-times"></i>
+                            </button>
+
+                            <button class="btn btn-success" type="button" data-bs-toggle="modal" data-bs-target="#modalNuevoCliente" title="Registrar Nuevo">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        
+                        <input type="text" name="cliente_nombre" id="clienteNombre" class="form-control" 
+                               placeholder="Nombre del cliente..." readonly>
+                    </div>
+                </div>
+
+                <div class="card shadow mb-3">
+                    <div class="card-header bg-success text-white d-flex justify-content-between">
+                        <h5 class="mb-0"><i class="fas fa-shopping-cart"></i> Carrito</h5>
+                        <span class="badge bg-white text-success" id="itemsCount">0 items</span>
+                    </div>
+                    <div class="card-body p-0 table-responsive" style="max-height: 250px;">
+                        <table class="table table-striped table-sm mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Prod.</th>
+                                    <th class="text-center">Cant.</th>
+                                    <th class="text-end">Sub.</th>
+                                    <th class="text-center">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="carritoBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer bg-light">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <span class="fw-bold" id="lblSubtotal">S/ 0.00</span>
+                        </div>
+                        <div class="input-group input-group-sm mb-2">
+                            <span class="input-group-text bg-warning text-dark fw-bold">Descuento S/</span>
+                            <input type="number" step="0.01" min="0" name="descuento" 
+                                   class="form-control text-end" id="inputDescuento" 
+                                   placeholder="0.00" oninput="validarPositivo(this); calcularTotales()">
+                        </div>
+                        <div class="d-flex justify-content-between border-top pt-2">
+                            <span class="h4">TOTAL:</span>
+                            <span class="h3 text-primary" id="lblTotal">S/ 0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="fw-bold">Método Pago</label>
+                            <select name="metodoPago" id="metodoPago" class="form-select" onchange="toggleMetodoPago()">
+                                <option value="Efectivo">Efectivo</option>
+                                <option value="Tarjeta">Tarjeta</option>
+                                <option value="Yape/Plin">Yape / Plin</option>
+                            </select>
+                        </div>
+                        <div id="seccionEfectivo">
+                            <label>Pagó con (S/):</label>
+                            <input type="number" step="0.01" min="0" name="montoPago" id="montoPago" 
+                                   class="form-control form-control-lg text-end mb-2" 
+                                   placeholder="0.00" oninput="validarPositivo(this); calcularVuelto()">
+                            <div class="d-flex justify-content-between">
+                                <strong>VUELTO:</strong>
+                                <span class="h5 mb-0 text-secondary" id="lblVuelto">--</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-success w-100 btn-lg mt-3" onclick="procesarVenta()">
+                            <i class="fas fa-check-circle"></i> FINALIZAR VENTA
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalNuevoCliente" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-user-plus"></i> Nuevo Cliente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNuevoCliente">
+                    <div class="mb-3">
+                        <label class="form-label">DNI (8 dígitos)</label>
+                        <input type="text" id="modalDni" class="form-control" required maxlength="8"
+                               placeholder="Ingrese DNI"
+                               oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 8)">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nombre Completo</label>
+                        <input type="text" id="modalNombre" class="form-control" required style="text-transform: uppercase;">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="guardarClienteModal()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script th:src="@{/js/bootstrap.bundle.min.js}"></script>
+<script th:inline="javascript">
+    
+    window.onload = function() {
+        let divFlash = document.getElementById('flashMessages');
+        let mensaje = divFlash.getAttribute('data-mensaje');
+        let prodError = divFlash.getAttribute('data-producto');
+        
+        if (mensaje) {
+            if (mensaje === 'exito') {
+                Swal.fire({
+                    title: '¡Venta Exitosa!', text: 'Se ha registrado correctamente.', icon: 'success',
+                    timer: 3000, showConfirmButton: false
+                });
+            } else if (mensaje === 'error_stock_real') {
+                Swal.fire('¡Stock Agotado!', 'El producto "' + prodError + '" ya no tiene stock.', 'error');
+            } else if (mensaje === 'error_inactivo') {
+                Swal.fire('¡Producto Inactivo!', 'El producto "' + prodError + '" ha sido desactivado.', 'warning');
+            } else if (mensaje === 'error_cliente_no_existe') {
+                Swal.fire('Cliente no registrado', 'El DNI no existe. Por favor regístrelo.', 'error');
+            } else if (mensaje === 'error_pago') {
+                Swal.fire('Pago Insuficiente', 'El monto recibido es menor al total.', 'error');
+            } else if (mensaje === 'error_sin_productos') {
+                Swal.fire('Carrito Vacío', 'Agregue productos para vender.', 'warning');
+            }
+        }
+    };
+
+    // --- BUSCAR CLIENTE (ESTRICTO) ---
+    function buscarClienteDni() {
+        let dni = document.getElementById('clienteDni').value.trim();
+        // Validar longitud exacta 8
+        if (!dni || dni.length !== 8) { 
+            Swal.fire('DNI Inválido', 'El DNI debe tener 8 dígitos.', 'warning'); return; 
+        }
+
+        fetch('/ventas/buscar-cliente-dni?dni=' + dni)
+            .then(res => {
+                if(res.ok) return res.json();
+                else throw new Error('No encontrado');
+            })
+            .then(cliente => {
+                document.getElementById('clienteNombre').value = cliente.nombre;
+                const Toast = Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 1500});
+                Toast.fire({ icon: 'success', title: 'Cliente encontrado' });
+            })
+            .catch(err => {
+                document.getElementById('clienteNombre').value = ""; // No dejar escribir
+                Swal.fire({
+                    title: 'Cliente no registrado',
+                    text: 'El DNI no existe en el sistema. Use el botón "+" verde para registrarlo.',
+                    icon: 'warning',
+                    confirmButtonText: 'Entendido'
+                });
+            });
+    }
+
+    // --- GUARDAR CLIENTE (SOLUCIÓN ERROR 403) ---
+    function guardarClienteModal() {
+        let dni = document.getElementById('modalDni').value.trim();
+        let nombre = document.getElementById('modalNombre').value.trim();
+
+        if(!dni || dni.length !== 8) {
+            Swal.fire('DNI Inválido', 'Debe tener 8 dígitos exactos.', 'warning'); return;
+        }
+        if(!nombre) {
+            Swal.fire('Falta Nombre', 'Ingrese el nombre del cliente.', 'warning'); return;
+        }
+
+        let datos = { dni: dni, nombre: nombre };
+        
+        // ** SOLUCIÓN 403: OBTENER EL TOKEN CSRF DEL HEAD **
+        const csrfToken = document.querySelector("meta[name='_csrf']").getAttribute("content");
+        const csrfHeader = document.querySelector("meta[name='_csrf_header']").getAttribute("content");
+
+        fetch('/ventas/api/guardar-cliente', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                [csrfHeader]: csrfToken // <-- AQUÍ SE ENVÍA EL TOKEN
+            },
+            body: JSON.stringify(datos)
+        })
+        .then(response => {
+            // Si es 200 OK retorna json, sino retorna el mensaje de error del backend
+            if(response.ok) return response.json();
+            else return response.text().then(text => { throw new Error(text) });
+        })
+        .then(cliente => {
+            // Cierra el modal
+            var modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
+            modal.hide();
+            
+            // Llena los datos en el formulario principal
+            document.getElementById('clienteDni').value = cliente.dni;
+            document.getElementById('clienteNombre').value = cliente.nombre;
+            
+            // Limpia el formulario del modal
+            document.getElementById('formNuevoCliente').reset();
+            
+            // Alerta Éxito
+            Swal.fire('¡Registrado!', 'Cliente agregado correctamente.', 'success');
+        })
+        .catch(error => {
+            // Alerta Error (ej: DNI duplicado)
+            Swal.fire('Error', error.message, 'error');
+        });
+    }
+
+    // --- FUNCIONES COMUNES (Igual que antes) ---
+    function actualizarReloj() { document.getElementById('reloj').innerText = new Date().toLocaleTimeString('es-PE'); }
+    setInterval(actualizarReloj, 1000); actualizarReloj();
+
+    let carrito = [];
+
+    function validarPositivo(input) { if (input.value < 0) input.value = ""; }
+
+    function limpiarBusquedaProducto() {
+        document.getElementById('txtBuscar').value = '';
+        document.getElementById('txtBuscar').focus();
+        document.getElementById('tablaResultados').innerHTML = `<tr><td colspan="6" class="text-center text-muted py-5"><i class="fas fa-search fa-2x mb-2"></i><br>Buscador vacío...</td></tr>`;
+    }
+
+    function limpiarBusquedaCliente() {
+        document.getElementById('clienteDni').value = '';
+        document.getElementById('clienteNombre').value = '';
+        document.getElementById('clienteDni').focus();
+    }
+
+    function buscarProductos() {
+        let query = document.getElementById('txtBuscar').value;
+        if (!query || query.trim() === "") { limpiarBusquedaProducto(); return; }
+        fetch('/ventas/buscar-productos?query=' + query)
+            .then(r => r.text())
+            .then(html => document.getElementById('tablaResultados').innerHTML = html);
+    }
+
+    function agregarAlCarrito(id, codigo, nombre, precio, stock) {
+        let inputCant = document.getElementById('inputCant_' + id);
+        let cantidad = parseInt(inputCant.value);
+        if (!cantidad || cantidad < 1) { Swal.fire('Error', 'Cantidad inválida', 'warning'); return; }
+        if (cantidad > stock) { Swal.fire('Error', 'Stock insuficiente', 'warning'); return; }
+
+        let existe = carrito.find(i => i.id === id);
+        if (existe) {
+            if (existe.cantidad + cantidad > stock) { Swal.fire('Tope de stock alcanzado', '', 'warning'); return; }
+            existe.cantidad += cantidad;
+        } else {
+            carrito.push({ id, nombre, precio, cantidad });
+        }
+        renderizarCarrito();
+        inputCant.value = 1;
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Agregado', showConfirmButton: false, timer: 1000});
+    }
+
+    function renderizarCarrito() {
+        let tbody = document.getElementById('carritoBody');
+        tbody.innerHTML = '';
+        let totalBruto = 0;
+        carrito.forEach((item, idx) => {
+            let subtotal = item.precio * item.cantidad;
+            totalBruto += subtotal;
+            tbody.innerHTML += `
+                <tr>
+                    <td><small class="fw-bold">${item.nombre}</small><input type="hidden" name="item_id" value="${item.id}"></td>
+                    <td class="text-center">${item.cantidad}<input type="hidden" name="item_cantidad" value="${item.cantidad}"></td>
+                    <td class="text-end">${subtotal.toFixed(2)}</td>
+                    <td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm border-0" onclick="borrarItem(${idx})"><i class="fas fa-trash-alt"></i></button></td>
+                </tr>`;
+        });
+        document.getElementById('itemsCount').innerText = carrito.length + ' items';
+        document.getElementById('lblSubtotal').setAttribute('data-val', totalBruto);
+        document.getElementById('lblSubtotal').innerText = 'S/ ' + totalBruto.toFixed(2);
+        calcularTotales();
+    }
+
+    function borrarItem(idx) { carrito.splice(idx, 1); renderizarCarrito(); }
+
+    function calcularTotales() {
+        let sub = parseFloat(document.getElementById('lblSubtotal').getAttribute('data-val')) || 0;
+        let desc = parseFloat(document.getElementById('inputDescuento').value) || 0;
+        let total = sub - desc;
+        if(total < 0) total = 0;
+        document.getElementById('lblTotal').innerText = 'S/ ' + total.toFixed(2);
+        
+        if (document.getElementById('metodoPago').value !== 'Efectivo') {
+            document.getElementById('montoPago').value = total.toFixed(2);
+        }
+        calcularVuelto();
+    }
+
+    function calcularVuelto() {
+        let total = parseFloat(document.getElementById('lblTotal').innerText.replace('S/ ', '')) || 0;
+        let inputPago = document.getElementById('montoPago');
+        let pago = parseFloat(inputPago.value);
+        let lbl = document.getElementById('lblVuelto');
+
+        if (isNaN(pago) || inputPago.value === "") { lbl.innerText = "--"; lbl.className = "h5 mb-0 text-secondary"; return; }
+        let vuelto = pago - total;
+        if (vuelto < 0) { lbl.innerText = "Falta: S/ " + Math.abs(vuelto).toFixed(2); lbl.className = "h5 mb-0 text-danger"; }
+        else { lbl.innerText = "S/ " + vuelto.toFixed(2); lbl.className = "h5 mb-0 text-success"; }
+    }
+
+    function toggleMetodoPago() {
+        let esEfectivo = document.getElementById('metodoPago').value === 'Efectivo';
+        document.getElementById('seccionEfectivo').style.display = esEfectivo ? 'block' : 'none';
+        if(!esEfectivo) calcularTotales();
+        else { document.getElementById('montoPago').value = ''; document.getElementById('lblVuelto').innerText = '--'; }
+    }
+
+    function procesarVenta() {
+        if (carrito.length === 0) { Swal.fire('Carrito vacío', 'Agrega productos.', 'warning'); return; }
+        let nombreCliente = document.getElementById('clienteNombre').value;
+        if (!nombreCliente) { Swal.fire('Falta Cliente', 'Debe buscar un cliente existente.', 'warning'); return; }
+        
+        let metodo = document.getElementById('metodoPago').value;
+        if (metodo === 'Efectivo') {
+            let total = parseFloat(document.getElementById('lblTotal').innerText.replace('S/ ', ''));
+            let pago = parseFloat(document.getElementById('montoPago').value);
+            if (isNaN(pago) || pago < total) { Swal.fire('Pago Inválido', 'Monto insuficiente.', 'error'); return; }
+        }
+
+        Swal.fire({
+            title: '¿Confirmar venta?', icon: 'question', showCancelButton: true, confirmButtonText: 'Sí, vender', cancelButtonText: 'Cancelar'
+        }).then((res) => {
+            if (res.isConfirmed) document.getElementById('formVenta').submit();
+        });
+    }
+</script>
+</body>
+</html>

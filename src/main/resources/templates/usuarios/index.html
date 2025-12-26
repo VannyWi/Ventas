@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Gestión de Usuarios</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-light">
+
+    <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
+
+    <div class="container-fluid px-4">
+        <div class="row">
+            
+            <div class="col-md-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white py-3">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="m-0 font-weight-bold text-primary">Usuarios del Sistema</h5>
+                            </div>
+                            <div class="col">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                    <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="Buscar usuario...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                            <table class="table table-bordered table-striped table-hover m-0 align-middle" id="tablaUsuarios">
+                                <thead class="table-dark sticky-top">
+                                    <tr>
+                                        <th>Nombre Completo</th>
+                                        <th>Usuario</th>
+                                        <th>Rol</th>
+                                        <th>Tienda</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="u : ${listaUsuarios}" 
+                                        th:classappend="${!u.activo} ? 'table-secondary text-muted' : ''">
+                                        
+                                        <td th:text="${u.nombre} + ' ' + ${u.apellido}"></td>
+                                        <td th:text="${u.username}" class="fw-bold"></td>
+                                        
+                                        <td>
+                                            <span th:if="${u.rol == 'ADMIN'}" class="badge bg-primary">ADMIN</span>
+                                            <span th:if="${u.rol == 'VENDEDOR'}" class="badge bg-info text-dark">VENDEDOR</span>
+                                        </td>
+
+                                        <td th:text="${u.tienda.nombre}"></td>
+                                        
+                                        <td class="text-center">
+                                            <span th:if="${u.activo}" class="badge bg-success">Activo</span>
+                                            <span th:if="${!u.activo}" class="badge bg-secondary">Inactivo</span>
+                                        </td>
+                                        
+                                        <td class="text-center">
+                                            <div th:if="${u.activo}">
+                                                <button type="button" 
+                                                        class="btn btn-warning btn-sm me-1" 
+                                                        th:data-id="${u.id}" 
+                                                        th:data-nombre="${u.nombre}"
+                                                        th:data-apellido="${u.apellido}"
+                                                        th:data-username="${u.username}"
+                                                        th:data-rol="${u.rol}"
+                                                        th:data-tienda="${u.tienda.id}"
+                                                        onclick="cargarFormulario(this)"
+                                                        title="Editar">
+                                                    <i class="bi bi-pencil-square"></i>
+                                                </button>
+
+                                                <button type="button" 
+                                                        class="btn btn-danger btn-sm"
+                                                        th:onclick="|confirmarDesactivar(${u.id})|"
+                                                        title="Desactivar">
+                                                    <i class="bi bi-person-x-fill"></i>
+                                                </button>
+                                            </div>
+
+                                            <div th:if="${!u.activo}">
+                                                <button type="button"
+                                                        class="btn btn-success btn-sm w-100"
+                                                        th:onclick="|confirmarReactivar(${u.id})|"
+                                                        title="Reactivar">
+                                                    <i class="bi bi-person-check-fill"></i> Reactivar
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card shadow mb-4 sticky-top" style="top: 20px; z-index: 100;">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="m-0"><i class="bi bi-person-gear me-2"></i>Gestión de Usuario</h5>
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/usuarios/guardar}" th:object="${usuario}" method="post" id="formUsuario">
+                            <input type="hidden" th:field="*{id}" id="idUsuario" />
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Nombre:</label>
+                                <input type="text" th:field="*{nombre}" id="nombreUsuario" class="form-control" required
+                                       oninput="this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Apellido:</label>
+                                <input type="text" th:field="*{apellido}" id="apellidoUsuario" class="form-control" required
+                                       oninput="this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Usuario (Login):</label>
+                                <input type="text" th:field="*{username}" id="usernameUsuario" class="form-control" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Contraseña:</label>
+                                <input type="password" th:field="*{password}" id="passwordUsuario" class="form-control" placeholder="Dejar vacío si no cambia">
+                                <div class="form-text text-muted" style="font-size: 0.75rem;">
+                                    * 8+ caracteres, mayúscula, número y símbolo.
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Rol:</label>
+                                <select th:field="*{rol}" id="rolUsuario" class="form-select" required>
+                                    <option value="VENDEDOR">Vendedor</option>
+                                    <option value="ADMIN">Administrador</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Tienda:</label>
+                                <select th:field="*{tienda}" id="tiendaUsuario" class="form-select" required>
+                                    <option value="">-- Seleccione Sucursal --</option>
+                                    <option th:each="t : ${listaTiendas}" th:value="${t.id}" th:text="${t.nombre}"></option>
+                                </select>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-save me-2"></i>Guardar
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="limpiarFormulario()">
+                                    <i class="bi bi-eraser me-2"></i>Limpiar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        
+        // 1. ALERTAS Y MENSAJES
+        var mensaje = /*[[${mensaje}]]*/ null;
+        
+        if(mensaje) {
+            let titulo = "Información";
+            let texto = "";
+            let icono = "info";
+
+            if(mensaje === 'guardado') { 
+                titulo = "¡Usuario Creado!"; 
+                texto = "El usuario se registró correctamente.";
+                icono = "success"; 
+            }
+            else if(mensaje === 'editado') { 
+                titulo = "¡Datos Actualizados!"; 
+                texto = "La información del usuario ha sido modificada.";
+                icono = "success"; 
+            }
+            else if(mensaje === 'desactivado') { 
+                titulo = "Usuario Desactivado"; 
+                texto = "El usuario ya no tiene acceso al sistema.";
+                icono = "warning"; 
+            }
+            else if(mensaje === 'reactivado') { 
+                titulo = "Usuario Reactivado"; 
+                texto = "El usuario tiene acceso nuevamente.";
+                icono = "success"; 
+            }
+            else if(mensaje === 'duplicado') { 
+                titulo = "Error"; 
+                texto = "El nombre de usuario ya existe en el sistema."; 
+                icono = "error"; 
+            }
+            else if(mensaje === 'texto_invalido') { 
+                titulo = "Error de Formato"; 
+                texto = "El nombre y apellido solo pueden contener letras."; 
+                icono = "warning"; 
+            }
+            else { 
+                titulo = "Error"; 
+                texto = "Ocurrió un error inesperado.";
+                icono = "error"; 
+            }
+
+            // Lanzar la alerta
+            Swal.fire({
+                title: titulo,
+                text: texto,
+                icon: icono
+            });
+        }
+
+        // 2. CARGAR DATOS EN EL FORMULARIO (PARA EDITAR)
+        function cargarFormulario(boton) {
+            var id = boton.getAttribute("data-id");
+            var nombre = boton.getAttribute("data-nombre");
+            var apellido = boton.getAttribute("data-apellido");
+            var username = boton.getAttribute("data-username");
+            var rol = boton.getAttribute("data-rol");
+            var tienda = boton.getAttribute("data-tienda");
+
+            // Asignar valores a los inputs
+            document.getElementById('idUsuario').value = id;
+            document.getElementById('nombreUsuario').value = nombre;
+            document.getElementById('apellidoUsuario').value = apellido;
+            document.getElementById('usernameUsuario').value = username;
+            document.getElementById('rolUsuario').value = rol;
+            document.getElementById('tiendaUsuario').value = tienda;
+            
+            // La contraseña no se carga (se deja vacía para no cambiarla)
+            document.getElementById('passwordUsuario').value = "";
+            document.getElementById('passwordUsuario').required = false; 
+
+            // Efecto visual para indicar que se está editando
+            document.querySelector('.col-md-4 .card').classList.add('border-warning');
+            document.getElementById('nombreUsuario').focus();
+        }
+
+        function limpiarFormulario() {
+            document.getElementById('formUsuario').reset();
+            document.getElementById('idUsuario').value = '';
+            document.getElementById('passwordUsuario').required = true; // Vuelve a ser obligatoria al crear
+            document.querySelector('.col-md-4 .card').classList.remove('border-warning');
+        }
+
+        // 3. CONFIRMACIONES DE ELIMINAR / REACTIVAR
+        function confirmarDesactivar(id) {
+            Swal.fire({
+                title: '¿Desactivar usuario?', 
+                text: "No podrá ingresar al sistema.",
+                icon: 'warning', 
+                showCancelButton: true, 
+                confirmButtonColor: '#d33', 
+                confirmButtonText: 'Sí, desactivar'
+            }).then((r) => { 
+                if (r.isConfirmed) window.location.href = "/usuarios/eliminar/" + id; 
+            })
+        }
+
+        function confirmarReactivar(id) {
+            Swal.fire({
+                title: '¿Reactivar usuario?', 
+                icon: 'question', 
+                showCancelButton: true, 
+                confirmButtonColor: '#198754', 
+                confirmButtonText: 'Sí, reactivar'
+            }).then((r) => { 
+                if (r.isConfirmed) window.location.href = "/usuarios/reactivar/" + id; 
+            })
+        }
+
+        // 4. BUSCADOR EN TIEMPO REAL
+        document.getElementById('searchInput').addEventListener('keyup', function() {
+            var value = this.value.toLowerCase();
+            document.querySelectorAll('#tablaUsuarios tbody tr').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(value) ? '' : 'none';
+            });
+        });
+
+        // 5. VALIDACIÓN DE CONTRASEÑA SEGURA
+        document.getElementById('formUsuario').addEventListener('submit', function(e) {
+            const pass = document.getElementById('passwordUsuario').value;
+            const id = document.getElementById('idUsuario').value;
+            // Mínimo 8 caracteres, 1 mayúscula, 1 número, 1 símbolo
+            const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
+            // Validamos SI es un usuario nuevo (id vacío) 
+            // O SI estamos editando (id con valor) PERO el usuario escribió una nueva contraseña
+            if (id === "" || (id !== "" && pass.length > 0)) {
+                if (!regex.test(pass)) {
+                    e.preventDefault(); // Detiene el envío
+                    Swal.fire({
+                        title: 'Contraseña Insegura',
+                        text: 'Debe tener al menos 8 caracteres, incluir una mayúscula, un número y un símbolo.',
+                        icon: 'warning'
+                    });
+                }
+            }
+        });
+        /*]]>*/
+    </script>
+</body>
+</html>

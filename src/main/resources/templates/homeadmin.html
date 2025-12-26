@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Dashboard Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+</head>
+<body class="bg-light">
+
+    <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
+
+    <div class="container text-center mt-5">
+        <h1 class="display-4">Panel de Administración</h1>
+        <p class="lead">Bienvenido, <span th:text="${userLog.username}" class="fw-bold"></span></p>
+        
+        <div class="row mt-4 justify-content-center">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white mb-3">
+                    <div class="card-body">
+                        <h5>Gestionar Usuarios</h5>
+                        <a href="/usuarios" class="btn btn-light btn-sm mt-2">Ir ahora</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white mb-3">
+                    <div class="card-body">
+                        <h5>Ver Tiendas</h5>
+                        <a href="/tiendas" class="btn btn-light btn-sm mt-2">Ir ahora</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
