@@ -8,7 +8,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
-
+import org.springframework.stereotype.Repository;
+@Repository
 public interface ProductoRepository extends JpaRepository<Producto, Long> {
 
     Optional<Producto> findByCodigoBarrasAndTienda_IdAndActivoTrue(String codigoBarras, Long tiendaId);
@@ -21,4 +22,6 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
     @Modifying
     @Query("UPDATE Producto p SET p.stock = p.stock - :cantidad WHERE p.id = :id AND p.stock >= :cantidad AND p.activo = true")
     int reducirStock(@Param("id") Long id, @Param("cantidad") Integer cantidad);
+    
+    List<Producto> findByStockLessThan(Integer cantidadCritica);
 }

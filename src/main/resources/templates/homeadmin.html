@@ -1,38 +1,241 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Dashboard Admin</title>
+    <title>Dashboard Administrativo</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-light">
 
     <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
 
-    <div class="container text-center mt-5">
-        <h1 class="display-4">Panel de Administración</h1>
-        <p class="lead">Bienvenido, <span th:text="${userLog.username}" class="fw-bold"></span></p>
-        
-        <div class="row mt-4 justify-content-center">
-            <div class="col-md-3">
-                <div class="card bg-primary text-white mb-3">
+    <div class="container-fluid px-4">
+        <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
+            <h1 class="h3 text-gray-800">Panel de Control <span class="badge bg-secondary fs-6">Hoy</span></h1>
+            <a href="#" class="btn btn-sm btn-primary shadow-sm"><i class="bi bi-download fa-sm text-white-50"></i> Generar Reporte</a>
+        </div>
+
+        <div class="row">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-start border-success border-4 shadow h-100 py-2">
                     <div class="card-body">
-                        <h5>Gestionar Usuarios</h5>
-                        <a href="/usuarios" class="btn btn-light btn-sm mt-2">Ir ahora</a>
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Ventas del Día</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800" 
+                                     th:text="'S/. ' + ${#numbers.formatDecimal(totalVentas, 1, 'COMMA', 2, 'POINT')}">S/. 0.00</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-currency-dollar fs-2 text-gray-300 text-success"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card bg-success text-white mb-3">
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-start border-primary border-4 shadow h-100 py-2">
                     <div class="card-body">
-                        <h5>Ver Tiendas</h5>
-                        <a href="/tiendas" class="btn btn-light btn-sm mt-2">Ir ahora</a>
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Tickets Emitidos</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${cantidadTickets}">0</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-receipt fs-2 text-primary"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-start border-danger border-4 shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Stock Crítico</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${alertasStock} + ' Productos'">0</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-exclamation-triangle-fill fs-2 text-danger"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <div class="row">
+            <div class="col-lg-8 mb-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Top 5 Productos Más Vendidos</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-bar">
+                            <canvas id="chartTopProductos"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 mb-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Métodos de Pago (Hoy)</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-pie pt-4 pb-2">
+                            <canvas id="chartPagos"></canvas>
+                        </div>
+                        <div class="mt-4 text-center small text-muted">
+                            Distribución de transacciones
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+             <div class="col-lg-6 mb-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-success">Ingresos por Categoría (Hoy)</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-pie">
+                            <canvas id="chartCategorias"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 bg-danger text-white">
+                        <h6 class="m-0 font-weight-bold"><i class="bi bi-exclamation-circle me-2"></i>Alerta: Reponer Stock</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Categoría</th>
+                                        <th class="text-center">Stock Actual</th>
+                                        <th class="text-center">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="prod : ${listaStockBajo}">
+                                        <td th:text="${prod.nombre}"></td>
+                                        <td th:text="${prod.categoria.nombre}"></td>
+                                        <td class="text-center text-danger fw-bold" th:text="${prod.stock}"></td>
+                                        <td class="text-center">
+                                            <a th:href="@{/productos}" class="btn btn-warning btn-sm py-0">Reponer</a>
+                                        </td>
+                                    </tr>
+                                    <tr th:if="${#lists.isEmpty(listaStockBajo)}">
+                                        <td colspan="4" class="text-center text-success">¡Todo el inventario está saludable!</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        
+        // --- 1. GRÁFICO DE BARRAS: TOP PRODUCTOS ---
+        const topProdLabels = /*[[${topProdLabels}]]*/ [];
+        const topProdData = /*[[${topProdData}]]*/ [];
+
+        new Chart(document.getElementById('chartTopProductos'), {
+            type: 'bar',
+            data: {
+                labels: topProdLabels,
+                datasets: [{
+                    label: 'Unidades Vendidas',
+                    data: topProdData,
+                    backgroundColor: 'rgba(78, 115, 223, 0.7)',
+                    borderColor: 'rgba(78, 115, 223, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                indexAxis: 'y', // Hace que las barras sean horizontales
+                scales: { x: { beginAtZero: true } }
+            }
+        });
+
+        // --- 2. GRÁFICO PASTEL: MÉTODOS DE PAGO ---
+        const pagoLabels = /*[[${pagoLabels}]]*/ [];
+        const pagoData = /*[[${pagoData}]]*/ [];
+
+        // Si no hay datos, mostramos un mensaje visual o datos dummy
+        if (pagoLabels.length === 0) { pagoLabels.push("Sin ventas"); pagoData.push(1); }
+
+        new Chart(document.getElementById('chartPagos'), {
+            type: 'doughnut',
+            data: {
+                labels: pagoLabels,
+                datasets: [{
+                    data: pagoData,
+                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e'],
+                    hoverBackgroundColor: ['#2e59d9', '#17a673', '#2c9faf', '#dda20a'],
+                    hoverBorderColor: "rgba(234, 236, 244, 1)",
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+
+        // --- 3. GRÁFICO DONA: VENTAS POR CATEGORÍA ---
+        const catLabels = /*[[${catLabels}]]*/ [];
+        const catData = /*[[${catData}]]*/ [];
+
+        new Chart(document.getElementById('chartCategorias'), {
+            type: 'pie',
+            data: {
+                labels: catLabels,
+                datasets: [{
+                    data: catData,
+                    backgroundColor: ['#e74a3b', '#f6c23e', '#1cc88a', '#4e73df', '#858796'],
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) { label += ': '; }
+                                label += 'S/. ' + context.raw.toFixed(2);
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        /*]]>*/
+    </script>
 </body>
 </html>
