@@ -2,14 +2,17 @@ package com.giovi.demo.controller;
 
 import com.giovi.demo.entity.*;
 import com.giovi.demo.repository.*;
+import com.giovi.demo.service.VentaPdfService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Transactional; // Importante
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.io.IOException;
 import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -24,24 +27,23 @@ public class VentaController {
     @Autowired private ProductoRepository productoRepository;
     @Autowired private ClienteRepository clienteRepository;
     @Autowired private UsuarioRepository usuarioRepository;
-    @Autowired private TiendaRepository tiendaRepository; // Necesario para el bloqueo de seguridad
+    @Autowired private TiendaRepository tiendaRepository;
+    
+    @Autowired private VentaPdfService ventaPdfService;
 
     // --- 1. CARGA INICIAL (PANTALLA DE VENTA) ---
     @GetMapping("/crear")
     public String crearVenta(Model model, Principal principal) {
         if (principal == null) return "redirect:/login";
         
-        // Inicializamos la venta y la lista de productos vacía
         model.addAttribute("venta", new Venta());
         model.addAttribute("listaProductos", new ArrayList<Producto>()); 
-        
         return "ventas/crear";
     }
 
     // --- 2. BÚSQUEDA DE PRODUCTOS (AJAX) ---
     @GetMapping("/buscar-productos")
     public String buscarProductosAjax(@RequestParam String query, Model model, Principal principal) {
-        // Validación: Si la búsqueda está vacía, retornamos lista vacía
         if (query == null || query.trim().isEmpty()) {
             model.addAttribute("listaProductos", new ArrayList<>());
             return "ventas/crear :: listaProductosFragment";
@@ -50,12 +52,10 @@ public class VentaController {
         if (principal != null) {
             Usuario vendedor = usuarioRepository.findByUsername(principal.getName()).orElse(null);
             if (vendedor != null && vendedor.getTienda() != null) {
-                // Busca productos por nombre/código, filtrando por tienda y estado activo
                 List<Producto> productos = productoRepository.buscarPorTerminoYTienda(query, vendedor.getTienda().getId());
                 model.addAttribute("listaProductos", productos);
             }
         }
-        // Retorna solo el fragmento HTML de la tabla
         return "ventas/crear :: listaProductosFragment";
     }
 
@@ -71,7 +71,7 @@ public class VentaController {
         }
     }
 
-    // --- 4. API PARA GUARDAR NUEVO CLIENTE DESDE MODAL (AJAX) ---
+    // --- 4. API PARA GUARDAR NUEVO CLIENTE (AJAX) ---
     @PostMapping("/api/guardar-cliente")
     @ResponseBody
     public ResponseEntity<?> guardarClienteModal(@RequestBody Map<String, String> datos) {
@@ -79,7 +79,6 @@ public class VentaController {
             String dni = datos.get("dni");
             String nombre = datos.get("nombre");
             
-            // Validaciones de seguridad para datos limpios
             if (dni == null || dni.length() != 8 || !dni.matches("\\d+")) {
                 return ResponseEntity.badRequest().body("El DNI debe tener exactamente 8 números.");
             }
@@ -89,20 +88,35 @@ public class VentaController {
 
             Cliente nuevo = new Cliente();
             nuevo.setDni(dni);
-            nuevo.setNombre(nombre.toUpperCase()); // Guardar siempre en mayúsculas
+            nuevo.setNombre(nombre.toUpperCase()); 
             clienteRepository.save(nuevo);
             
             return ResponseEntity.ok(nuevo);
-            
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest().body("Error interno al guardar el cliente.");
         }
     }
 
-    // --- 5. GUARDAR VENTA (LÓGICA PRINCIPAL) ---
+    // --- 5. GENERAR TICKET PDF (SOLUCIÓN ERROR 500) ---
+    @GetMapping("/ticket/{id}")
+    @Transactional(readOnly = true) // <--- ESTO SOLUCIONA LA CARGA DE DATOS (LAZY)
+    public void generarTicket(@PathVariable Long id, HttpServletResponse response) throws IOException {
+        Venta venta = ventaRepository.findById(id).orElse(null);
+        
+        if(venta != null) {
+            response.setContentType("application/pdf");
+            String headerKey = "Content-Disposition";
+            String headerValue = "inline; filename=ticket_" + venta.getNumeroVenta() + ".pdf";
+            response.setHeader(headerKey, headerValue);
+
+            ventaPdfService.exportar(response, venta);
+        }
+    }
+
+    // --- 6. GUARDAR VENTA ---
     @PostMapping("/guardar")
-    @Transactional // IMPORTANTE: Si algo falla, se revierte todo (stock, número, venta)
+    @Transactional 
     public String guardarVenta(@ModelAttribute Venta venta, 
                                @RequestParam(name = "cliente_dni") String clienteDni,
                                @RequestParam(name = "item_id", required = false) List<Long> itemIds,
@@ -110,17 +124,14 @@ public class VentaController {
                                Principal principal,
                                RedirectAttributes redirectAttributes) {
         try {
-            // A. Validar Usuario
             Usuario vendedor = usuarioRepository.findByUsername(principal.getName()).orElse(null);
             if (vendedor == null) return "redirect:/login";
 
-            // B. Validar Carrito Vacío
             if (itemIds == null || itemIds.isEmpty()) {
                 redirectAttributes.addFlashAttribute("mensaje", "error_sin_productos");
                 return "redirect:/ventas/crear";
             }
 
-            // C. Validar Cliente (Debe existir obligatoriamente)
             Cliente cliente = clienteRepository.findByDni(clienteDni);
             if (cliente == null) {
                 redirectAttributes.addFlashAttribute("mensaje", "error_cliente_no_existe");
@@ -128,25 +139,19 @@ public class VentaController {
             }
             venta.setCliente(cliente);
 
-            // --- BLOQUEO PESIMISTA: Evita duplicidad de números de venta ---
-            // Bloqueamos la tienda momentáneamente para serializar la generación del ticket
             tiendaRepository.obtenerTiendaConBloqueo(vendedor.getTienda().getId());
 
             double totalBruto = 0.0;
             if(venta.getDetalleVenta() == null) venta.setDetalleVenta(new ArrayList<>());
 
-            // D. Procesar Productos (Validación Atómica de Stock y Estado)
             for (int i = 0; i < itemIds.size(); i++) {
                 Long prodId = itemIds.get(i);
                 Integer cantidad = itemCantidades.get(i);
                 
-                // Intento restar stock en la BD verificando que (stock >= cantidad) Y (activo = true)
                 int filasActualizadas = productoRepository.reducirStock(prodId, cantidad);
                 
                 if (filasActualizadas == 0) {
-                    // Si falló, averiguamos la causa para mostrar la alerta correcta
                     Producto pError = productoRepository.findById(prodId).orElse(null);
-                    
                     if (pError == null || !pError.getActivo()) {
                         throw new RuntimeException("PRODUCTO_INACTIVO:" + (pError != null ? pError.getNombre() : "Desconocido"));
                     } else {
@@ -154,10 +159,7 @@ public class VentaController {
                     }
                 }
 
-                // Recuperamos el producto ya actualizado para agregarlo al detalle
                 Producto p = productoRepository.findById(prodId).get();
-                
-                // Seguridad extra: ¿Es de mi tienda?
                 if (!p.getTienda().getId().equals(vendedor.getTienda().getId())) {
                      throw new RuntimeException("ERROR_TIENDA");
                 }
@@ -174,7 +176,6 @@ public class VentaController {
                 venta.getDetalleVenta().add(detalle);
             }
 
-            // E. Calcular Totales
             double descuento = (venta.getDescuento() != null) ? venta.getDescuento() : 0.0;
             double totalFinal = totalBruto - descuento;
             if (totalFinal < 0) totalFinal = 0;
@@ -184,7 +185,6 @@ public class VentaController {
             venta.setUsuario(vendedor);
             venta.setTienda(vendedor.getTienda());
 
-            // F. Validar Pago
             if ("Efectivo".equals(venta.getMetodoPago())) {
                 if (venta.getMontoPago() < totalFinal) {
                     throw new RuntimeException("PAGO_INSUFICIENTE");
@@ -195,8 +195,7 @@ public class VentaController {
                 venta.setVuelto(0.0);
             }
 
-            // --- G. GENERAR NÚMERO CORRELATIVO (TKT-000001) ---
-            String PREFIJO = "TKT-"; // Puedes cambiarlo a "BOL-", "FAC-", etc.
+            String PREFIJO = "TKT-";
             String ultimoCodigo = ventaRepository.obtenerUltimoNumeroVenta();
             int nuevoNumero = 1;
 
@@ -210,17 +209,16 @@ public class VentaController {
                     }
                 }
             }
-            // Formatear: TKT + 6 dígitos (rellena con ceros)
             String codigoFinal = PREFIJO + String.format("%06d", nuevoNumero);
             venta.setNumeroVenta(codigoFinal);
 
-            // H. Guardar Final
-            ventaRepository.save(venta);
+            Venta ventaGuardada = ventaRepository.save(venta);
+            
             redirectAttributes.addFlashAttribute("mensaje", "exito");
+            return "redirect:/ventas/crear?exito=true&idVenta=" + ventaGuardada.getId();
             
         } catch (RuntimeException e) {
             String msg = e.getMessage();
-            // Mapeo de errores para SweetAlert
             if (msg.startsWith("STOCK_AGOTADO")) {
                 redirectAttributes.addFlashAttribute("mensaje", "error_stock_real");
                 redirectAttributes.addFlashAttribute("productoError", msg.split(":")[1]);
@@ -235,7 +233,7 @@ public class VentaController {
                 e.printStackTrace();
                 redirectAttributes.addFlashAttribute("mensaje", "error_grave");
             }
+            return "redirect:/ventas/crear";
         }
-        return "redirect:/ventas/crear";
     }
 }

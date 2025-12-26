@@ -230,6 +230,7 @@
 <script th:inline="javascript">
     
     window.onload = function() {
+        // 1. Manejo de Alertas (Flash Attributes)
         let divFlash = document.getElementById('flashMessages');
         let mensaje = divFlash.getAttribute('data-mensaje');
         let prodError = divFlash.getAttribute('data-producto');
@@ -237,8 +238,11 @@
         if (mensaje) {
             if (mensaje === 'exito') {
                 Swal.fire({
-                    title: '¡Venta Exitosa!', text: 'Se ha registrado correctamente.', icon: 'success',
-                    timer: 3000, showConfirmButton: false
+                    title: '¡Venta Exitosa!', 
+                    text: 'Generando ticket de venta...', 
+                    icon: 'success',
+                    timer: 2000, 
+                    showConfirmButton: false
                 });
             } else if (mensaje === 'error_stock_real') {
                 Swal.fire('¡Stock Agotado!', 'El producto "' + prodError + '" ya no tiene stock.', 'error');
@@ -252,12 +256,27 @@
                 Swal.fire('Carrito Vacío', 'Agregue productos para vender.', 'warning');
             }
         }
+
+        // 2. ABRIR PDF AUTOMÁTICAMENTE
+        // Leemos los parámetros de la URL actual
+        const urlParams = new URLSearchParams(window.location.search);
+        const exito = urlParams.get('exito');
+        const idVenta = urlParams.get('idVenta');
+
+        if (exito === 'true' && idVenta) {
+            // Abrir el PDF en una nueva pestaña
+            setTimeout(() => {
+                 window.open('/ventas/ticket/' + idVenta, '_blank');
+            }, 1000); // Pequeño retraso para que se vea la alerta primero
+
+            // Limpiar la URL para evitar reabrir al dar F5
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
     };
 
     // --- BUSCAR CLIENTE (ESTRICTO) ---
     function buscarClienteDni() {
         let dni = document.getElementById('clienteDni').value.trim();
-        // Validar longitud exacta 8
         if (!dni || dni.length !== 8) { 
             Swal.fire('DNI Inválido', 'El DNI debe tener 8 dígitos.', 'warning'); return; 
         }
@@ -273,7 +292,7 @@
                 Toast.fire({ icon: 'success', title: 'Cliente encontrado' });
             })
             .catch(err => {
-                document.getElementById('clienteNombre').value = ""; // No dejar escribir
+                document.getElementById('clienteNombre').value = ""; 
                 Swal.fire({
                     title: 'Cliente no registrado',
                     text: 'El DNI no existe en el sistema. Use el botón "+" verde para registrarlo.',
@@ -297,7 +316,6 @@
 
         let datos = { dni: dni, nombre: nombre };
         
-        // ** SOLUCIÓN 403: OBTENER EL TOKEN CSRF DEL HEAD **
         const csrfToken = document.querySelector("meta[name='_csrf']").getAttribute("content");
         const csrfHeader = document.querySelector("meta[name='_csrf_header']").getAttribute("content");
 
@@ -305,37 +323,30 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                [csrfHeader]: csrfToken // <-- AQUÍ SE ENVÍA EL TOKEN
+                [csrfHeader]: csrfToken 
             },
             body: JSON.stringify(datos)
         })
         .then(response => {
-            // Si es 200 OK retorna json, sino retorna el mensaje de error del backend
             if(response.ok) return response.json();
             else return response.text().then(text => { throw new Error(text) });
         })
         .then(cliente => {
-            // Cierra el modal
             var modal = bootstrap.Modal.getInstance(document.getElementById('modalNuevoCliente'));
             modal.hide();
             
-            // Llena los datos en el formulario principal
             document.getElementById('clienteDni').value = cliente.dni;
             document.getElementById('clienteNombre').value = cliente.nombre;
-            
-            // Limpia el formulario del modal
             document.getElementById('formNuevoCliente').reset();
             
-            // Alerta Éxito
             Swal.fire('¡Registrado!', 'Cliente agregado correctamente.', 'success');
         })
         .catch(error => {
-            // Alerta Error (ej: DNI duplicado)
             Swal.fire('Error', error.message, 'error');
         });
     }
 
-    // --- FUNCIONES COMUNES (Igual que antes) ---
+    // --- FUNCIONES COMUNES ---
     function actualizarReloj() { document.getElementById('reloj').innerText = new Date().toLocaleTimeString('es-PE'); }
     setInterval(actualizarReloj, 1000); actualizarReloj();
 
@@ -455,5 +466,6 @@
         });
     }
 </script>
+
 </body>
 </html>
