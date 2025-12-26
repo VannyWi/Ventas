@@ -13,17 +13,20 @@ import java.util.List;
 @Repository
 public interface DetalleVentaRepository extends JpaRepository<DetalleVenta, Long> {
 
-    // 1. Top Productos Más Vendidos
-    @Query("SELECT d.producto.nombre, SUM(d.cantidad) as total " +
-           "FROM DetalleVenta d " +
+   @Query("SELECT d.producto.nombre, SUM(d.cantidad) as total " +
+           "FROM DetalleVenta d JOIN d.venta v " + 
+           "WHERE v.fecha BETWEEN :inicio AND :fin " +
            "GROUP BY d.producto.nombre " +
            "ORDER BY total DESC")
-    List<Object[]> encontrarTopProductosVendidos(Pageable pageable);
+    List<Object[]> encontrarTopProductosVendidos(@Param("inicio") LocalDateTime inicio, 
+                                                 @Param("fin") LocalDateTime fin, 
+                                                 Pageable pageable);
 
-    // 2. Ventas por Categoría (en un rango de fechas)
+    // Consulta para categorías por fecha
     @Query("SELECT d.producto.categoria.nombre, SUM(d.subtotal) " +
            "FROM DetalleVenta d " +
            "WHERE d.venta.fecha BETWEEN :inicio AND :fin " +
            "GROUP BY d.producto.categoria.nombre")
-    List<Object[]> encontrarVentasPorCategoria(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+    List<Object[]> encontrarVentasPorCategoria(@Param("inicio") LocalDateTime inicio, 
+                                               @Param("fin") LocalDateTime fin);
 }

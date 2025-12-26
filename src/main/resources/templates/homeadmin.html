@@ -5,6 +5,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .filter-group { font-size: 0.85rem; }
+        .filter-group input { padding: 0.25rem 0.5rem; font-size: 0.85rem; }
+    </style>
 </head>
 <body class="bg-light">
 
@@ -17,28 +21,25 @@
                 <div class="card bg-white text-start shadow-sm h-100 border-start border-4 border-success">
                     <div class="card-body">
                         <p class="text-uppercase text-muted small fw-bold mb-1">Ventas del Día</p>
-                        <h3 class="text-success fw-bold" 
-                            th:text="'S/. ' + ${#numbers.formatDecimal(totalVentas, 1, 'COMMA', 2, 'POINT')}">S/. 0.00</h3>
+                        <h3 class="text-success fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(totalVentas, 1, 'COMMA', 2, 'POINT')}"></h3>
                     </div>
                 </div>
             </div>
-
             <div class="col-md-4 col-xl-3">
                 <div class="card bg-white text-start shadow-sm h-100 border-start border-4 border-primary">
                     <div class="card-body">
                         <p class="text-uppercase text-muted small fw-bold mb-1">Tickets Emitidos</p>
-                        <h3 class="text-primary fw-bold" th:text="${cantidadTickets}">0</h3>
+                        <h3 class="text-primary fw-bold" th:text="${cantidadTickets}"></h3>
                     </div>
                 </div>
             </div>
-
             <div class="col-md-4 col-xl-3">
                 <div class="card bg-white text-start shadow-sm h-100 border-start border-4 border-danger">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <p class="text-uppercase text-muted small fw-bold mb-1">Stock Crítico</p>
-                                <h3 class="text-danger fw-bold" th:text="${alertasStock}">0</h3>
+                                <h3 class="text-danger fw-bold" th:text="${totalStockBajo}"></h3>
                             </div>
                             <i class="bi bi-exclamation-triangle text-danger fs-1 opacity-25"></i>
                         </div>
@@ -48,43 +49,60 @@
         </div>
 
         <div class="row g-4 mb-4">
+            
             <div class="col-lg-7">
                 <div class="card shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0 py-3">
-                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-trophy me-2 text-warning"></i>Top 5 Productos Más Vendidos</h6>
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-trophy me-2 text-warning"></i>Top Productos</h6>
+                        
+                        <div class="d-flex align-items-center gap-2 filter-group bg-light p-1 rounded">
+                            <input type="date" id="startTop" th:value="${fechaHoy}" class="form-control border-0 bg-transparent">
+                            <span class="text-muted">-</span>
+                            <input type="date" id="endTop" th:value="${fechaHoy}" class="form-control border-0 bg-transparent">
+                            <button onclick="actualizarGrafico('top')" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
+                        </div>
                     </div>
                     <div class="card-body">
-                        <div style="height: 300px;">
-                            <canvas id="chartTopProductos"></canvas>
-                        </div>
+                        <div style="height: 300px;"><canvas id="chartTopProductos"></canvas></div>
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-5">
                 <div class="card shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0 py-3">
-                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-pie-chart me-2 text-info"></i>Ventas por Categoría</h6>
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-pie-chart me-2 text-info"></i>Categorías</h6>
+                        
+                        <div class="d-flex align-items-center gap-2 filter-group bg-light p-1 rounded">
+                            <input type="date" id="startCat" th:value="${fechaHoy}" class="form-control border-0 bg-transparent" style="width: 110px;">
+                            <span class="text-muted">-</span>
+                            <input type="date" id="endCat" th:value="${fechaHoy}" class="form-control border-0 bg-transparent" style="width: 110px;">
+                            <button onclick="actualizarGrafico('cat')" class="btn btn-sm btn-info text-white"><i class="bi bi-search"></i></button>
+                        </div>
                     </div>
                     <div class="card-body d-flex justify-content-center align-items-center">
-                        <div style="height: 250px; width: 100%;">
-                            <canvas id="chartCategorias"></canvas>
-                        </div>
+                        <div style="height: 250px; width: 100%;"><canvas id="chartCategorias"></canvas></div>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="row g-4">
+            
             <div class="col-lg-5">
                 <div class="card shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0 py-3">
-                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-credit-card me-2 text-success"></i>Métodos de Pago</h6>
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-credit-card me-2 text-success"></i>Ingresos por Pago</h6>
+                        
+                        <div class="d-flex align-items-center gap-2 filter-group bg-light p-1 rounded">
+                            <input type="date" id="startPago" th:value="${fechaHoy}" class="form-control border-0 bg-transparent" style="width: 110px;">
+                            <span class="text-muted">-</span>
+                            <input type="date" id="endPago" th:value="${fechaHoy}" class="form-control border-0 bg-transparent" style="width: 110px;">
+                            <button onclick="actualizarGrafico('pago')" class="btn btn-sm btn-success"><i class="bi bi-search"></i></button>
+                        </div>
                     </div>
                     <div class="card-body d-flex justify-content-center align-items-center">
-                        <div style="height: 250px; width: 100%;">
-                            <canvas id="chartPagos"></canvas>
-                        </div>
+                        <div style="height: 250px; width: 100%;"><canvas id="chartPagos"></canvas></div>
                     </div>
                 </div>
             </div>
@@ -92,19 +110,20 @@
             <div class="col-lg-7">
                 <div class="card shadow-sm h-100">
                     <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                        <h6 class="m-0 fw-bold text-danger"><i class="bi bi-box-seam me-2"></i>Reponer Inventario</h6>
-                        <span class="badge bg-danger rounded-pill" th:text="${alertasStock} + ' items'"></span>
+                        <h6 class="m-0 fw-bold text-danger"><i class="bi bi-box-seam me-2"></i>Stock Crítico</h6>
+                        <a th:href="@{/homeadmin/exportar-stock}" class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-file-earmark-excel me-1"></i>Exportar Excel
+                        </a>
                     </div>
                     <div class="card-body p-0">
-                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light sticky-top">
+                                <thead class="table-light">
                                     <tr>
                                         <th class="ps-4">Producto</th>
                                         <th>Categoría</th>
                                         <th class="text-center">Stock</th>
-                                        <th class="text-end pe-4">Acción</th>
-                                    </tr>
+                                        <th>Tienda</th> </tr>
                                 </thead>
                                 <tbody>
                                     <tr th:each="prod : ${listaStockBajo}">
@@ -113,107 +132,130 @@
                                         <td class="text-center">
                                             <span class="badge bg-danger bg-opacity-10 text-danger" th:text="${prod.stock} + ' un.'"></span>
                                         </td>
-                                        <td class="text-end pe-4">
-                                            <a th:href="@{/productos}" class="btn btn-sm btn-outline-danger">Ver</a>
-                                        </td>
-                                    </tr>
-                                    <tr th:if="${#lists.isEmpty(listaStockBajo)}">
-                                        <td colspan="4" class="text-center py-4 text-muted">
-                                            <i class="bi bi-check-circle text-success fs-4 d-block mb-2"></i>
-                                            Todo el inventario está en orden.
-                                        </td>
+                                        <td class="small" th:text="${prod.tienda != null ? prod.tienda.nombre : '-'}"></td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
+                    <div class="card-footer bg-white border-0 text-center py-3" th:if="${mostrarVerMas}">
+                        <a th:href="@{/productos(stockBajo=true)}" class="btn btn-sm btn-light text-muted w-100">
+                            Ver todos los productos con stock bajo <i class="bi bi-arrow-right ms-1"></i>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
-
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script th:inline="javascript">
-        /*<![CDATA[*/
-        // Opciones comunes para diseño limpio
-        Chart.defaults.font.family = "'Segoe UI', 'Helvetica Neue', 'Arial', sans-serif";
-        Chart.defaults.color = '#6c757d';
+        // Variables globales para las instancias de los gráficos
+        let chartTop, chartCat, chartPago;
 
-        // 1. TOP PRODUCTOS (BARRAS HORIZONTALES)
-        const topProdLabels = /*[[${topProdLabels}]]*/ [];
-        const topProdData = /*[[${topProdData}]]*/ [];
-
-        new Chart(document.getElementById('chartTopProductos'), {
-            type: 'bar',
-            data: {
-                labels: topProdLabels,
-                datasets: [{
-                    label: 'Unidades',
-                    data: topProdData,
-                    backgroundColor: '#4e73df',
-                    borderRadius: 4,
-                    barPercentage: 0.6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y', // Barras horizontales para leer mejor los nombres
-                plugins: { legend: { display: false } },
-                scales: { x: { grid: { display: false } }, y: { grid: { display: false } } }
-            }
+        // Inicializar al cargar
+        document.addEventListener("DOMContentLoaded", function() {
+            // Cargar datos iniciales (De hoy, como está en el value de los inputs)
+            actualizarGrafico('top');
+            actualizarGrafico('cat');
+            actualizarGrafico('pago');
         });
 
-        // 2. VENTAS POR CATEGORÍA (DONA)
-        const catLabels = /*[[${catLabels}]]*/ [];
-        const catData = /*[[${catData}]]*/ [];
+        // Función Maestra para actualizar gráficos
+        function actualizarGrafico(tipo) {
+            let start, end, url, chartId, chartType, chartInstance, bgColors, label;
 
-        new Chart(document.getElementById('chartCategorias'), {
-            type: 'doughnut',
-            data: {
-                labels: catLabels,
-                datasets: [{
-                    data: catData,
-                    backgroundColor: ['#36b9cc', '#1cc88a', '#f6c23e', '#e74a3b', '#858796'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '70%', // Dona más delgada
-                plugins: {
-                    legend: { position: 'right', labels: { boxWidth: 12 } }
+            // Configurar variables según el tipo de gráfico
+            if (tipo === 'top') {
+                start = document.getElementById('startTop').value;
+                end = document.getElementById('endTop').value;
+                url = '/api/grafico/top-productos';
+                chartId = 'chartTopProductos';
+                chartType = 'bar';
+                chartInstance = chartTop;
+                label = 'Unidades';
+                bgColors = '#4e73df';
+            } else if (tipo === 'cat') {
+                start = document.getElementById('startCat').value;
+                end = document.getElementById('endCat').value;
+                url = '/api/grafico/categorias';
+                chartId = 'chartCategorias';
+                chartType = 'doughnut';
+                chartInstance = chartCat;
+                bgColors = ['#36b9cc', '#1cc88a', '#f6c23e', '#e74a3b', '#858796'];
+            } else if (tipo === 'pago') {
+                start = document.getElementById('startPago').value;
+                end = document.getElementById('endPago').value;
+                url = '/api/grafico/pagos';
+                chartId = 'chartPagos';
+                chartType = 'pie';
+                chartInstance = chartPago;
+                bgColors = ['#4e73df', '#1cc88a', '#36b9cc'];
+            }
+
+            // Llamada AJAX (Fetch)
+            fetch(`${url}?inicio=${start}&fin=${end}`)
+                .then(response => response.json())
+                .then(data => {
+                    renderChart(chartId, chartType, data.labels, data.data, bgColors, label, tipo);
+                });
+        }
+
+        // Función para renderizar/actualizar el Chart.js
+        function renderChart(canvasId, type, labels, data, colors, datasetLabel, tipo) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            // Destruir gráfico anterior si existe para redibujar
+            if (tipo === 'top' && chartTop) chartTop.destroy();
+            if (tipo === 'cat' && chartCat) chartCat.destroy();
+            if (tipo === 'pago' && chartPago) chartPago.destroy();
+
+            let config = {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: datasetLabel || 'Valor',
+                        data: data,
+                        backgroundColor: colors,
+                        borderRadius: type === 'bar' ? 4 : 0,
+                        borderWidth: type === 'bar' ? 0 : 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: type === 'bar' ? 'y' : 'x',
+                    plugins: {
+                        legend: { display: type !== 'bar', position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let val = context.raw;
+                                    // Formato de moneda para pagos y categorías
+                                    if (tipo === 'pago' || tipo === 'cat') {
+                                        return ' S/. ' + val.toFixed(2);
+                                    }
+                                    return ' ' + val;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { display: type === 'bar' }, // Ocultar grid si no es barra
+                        y: { display: type === 'bar' }
+                    }
                 }
-            }
-        });
+            };
 
-        // 3. MÉTODOS DE PAGO (PASTEL)
-        const pagoLabels = /*[[${pagoLabels}]]*/ [];
-        const pagoData = /*[[${pagoData}]]*/ [];
-        if (pagoLabels.length === 0) { pagoLabels.push("Sin datos"); pagoData.push(1); }
+            let newChart = new Chart(ctx, config);
 
-        new Chart(document.getElementById('chartPagos'), {
-            type: 'pie',
-            data: {
-                labels: pagoLabels,
-                datasets: [{
-                    data: pagoData,
-                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 12 } }
-                }
-            }
-        });
-        /*]]>*/
+            // Guardar referencia
+            if (tipo === 'top') chartTop = newChart;
+            if (tipo === 'cat') chartCat = newChart;
+            if (tipo === 'pago') chartPago = newChart;
+        }
     </script>
 </body>
 </html>

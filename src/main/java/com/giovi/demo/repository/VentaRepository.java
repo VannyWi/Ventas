@@ -38,8 +38,8 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
     Long contarVentasVendedorHoy(@Param("usuarioId") Long usuarioId, @Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
     // 6. Mis Métodos de Pago
-    @Query("SELECT v.metodoPago, COUNT(v) FROM Venta v WHERE v.usuario.id = :usuarioId AND v.fecha BETWEEN :inicio AND :fin GROUP BY v.metodoPago")
-    List<Object[]> contarMetodosPagoVendedor(@Param("usuarioId") Long usuarioId, @Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+    @Query("SELECT v.metodoPago, SUM(v.montoTotal) FROM Venta v WHERE v.fecha BETWEEN :inicio AND :fin GROUP BY v.metodoPago")
+    List<Object[]> sumarVentasPorMetodoPago(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
     // 7. Mis Ventas por Fecha (Para gráfico de barras semanal)
     @Query("SELECT v.fecha, v.montoTotal FROM Venta v WHERE v.usuario.id = :usuarioId AND v.fecha BETWEEN :inicio AND :fin ORDER BY v.fecha ASC")
