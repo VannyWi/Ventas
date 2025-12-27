@@ -18,6 +18,7 @@ public class StockExcelExporter {
 
     private void writeHeaderLine(Sheet sheet) {
         Row row = sheet.createRow(0);
+        
         CellStyle style = sheet.getWorkbook().createCellStyle();
         Font font = sheet.getWorkbook().createFont();
         font.setBold(true);
@@ -31,12 +32,17 @@ public class StockExcelExporter {
     }
 
     private void createCell(Row row, int columnCount, Object value, CellStyle style) {
+        // CORRECCIÓN: Obtenemos la hoja desde la fila para ajustar el ancho
+        Sheet sheet = row.getSheet(); 
         sheet.autoSizeColumn(columnCount);
+        
         Cell cell = row.createCell(columnCount);
         if (value instanceof Integer) {
             cell.setCellValue((Integer) value);
         } else if (value instanceof Boolean) {
             cell.setCellValue((Boolean) value);
+        } else if (value instanceof Double) {
+            cell.setCellValue((Double) value);
         } else {
             cell.setCellValue((String) value);
         }
@@ -45,6 +51,7 @@ public class StockExcelExporter {
 
     private void writeDataLines(Sheet sheet) {
         int rowCount = 1;
+        
         CellStyle style = sheet.getWorkbook().createCellStyle();
         Font font = sheet.getWorkbook().createFont();
         font.setFontHeightInPoints((short) 12);
@@ -55,9 +62,12 @@ public class StockExcelExporter {
             int columnCount = 0;
 
             createCell(row, columnCount++, prod.getNombre(), style);
-            createCell(row, columnCount++, prod.getCategoria().getNombre(), style);
+            // Validación de nulos para evitar errores
+            String cat = (prod.getCategoria() != null) ? prod.getCategoria().getNombre() : "-";
+            createCell(row, columnCount++, cat, style);
+            
             createCell(row, columnCount++, prod.getStock(), style);
-            // Validamos tienda por si es nula
+            
             String tienda = (prod.getTienda() != null) ? prod.getTienda().getNombre() : "Sin Tienda";
             createCell(row, columnCount++, tienda, style);
         }
@@ -66,13 +76,12 @@ public class StockExcelExporter {
     public void export(HttpServletResponse response) throws IOException {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Stock Bajo");
+            
             writeHeaderLine(sheet);
             writeDataLines(sheet);
+            
             ServletOutputStream outputStream = response.getOutputStream();
             workbook.write(outputStream);
         }
     }
-    
-    private Sheet sheet; // Variable auxiliar para createCell (o pasala como parametro)
-    // Nota: Para simplificar, en createCell usa 'row.getSheet()'
 }
