@@ -12,7 +12,9 @@
 </head>
 <body class="bg-light">
 
-    <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
+     <div th:if="${userLog.rol == 'ADMIN'}">
+        <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
+    </div>
 
     <div class="container-fluid px-4 py-4">
         

@@ -40,4 +40,9 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
 
     @Query("SELECT v.fecha, v.montoTotal FROM Venta v WHERE v.usuario.id = :usuarioId AND v.fecha BETWEEN :inicio AND :fin ORDER BY v.fecha ASC")
     List<Object[]> encontrarVentasVendedorRango(@Param("usuarioId") Long usuarioId, @Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+    List<Venta> findByUsuarioIdAndFechaBetweenOrderByFechaDesc(Long usuarioId, LocalDateTime inicio, LocalDateTime fin);
+
+    // 2. Métodos de Pago del Vendedor (CONTEO / CANTIDAD como pediste)
+    @Query("SELECT v.metodoPago, COUNT(v) FROM Venta v WHERE v.usuario.id = :usuarioId AND v.fecha BETWEEN :inicio AND :fin GROUP BY v.metodoPago")
+    List<Object[]> contarMetodosPagoVendedor(@Param("usuarioId") Long usuarioId, @Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 }

@@ -2,6 +2,7 @@ package com.giovi.demo.util;
 
 import com.giovi.demo.entity.Producto;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress; // Necesario para los filtros
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import jakarta.servlet.ServletOutputStream;
@@ -11,19 +12,16 @@ import java.util.List;
 
 public class StockExcelExporter {
     private List<Producto> listaProductos;
+    private XSSFWorkbook workbook;
+    private Sheet sheet;
 
     public StockExcelExporter(List<Producto> listaProductos) {
         this.listaProductos = listaProductos;
+        workbook = new XSSFWorkbook(); // Inicializamos el workbook aquí
     }
 
-    private void writeHeaderLine(Sheet sheet) {
+    private void writeHeaderLine(CellStyle style) {
         Row row = sheet.createRow(0);
-        
-        CellStyle style = sheet.getWorkbook().createCellStyle();
-        Font font = sheet.getWorkbook().createFont();
-        font.setBold(true);
-        font.setFontHeightInPoints((short) 14);
-        style.setFont(font);
 
         createCell(row, 0, "Producto", style);
         createCell(row, 1, "Categoría", style);
@@ -32,11 +30,9 @@ public class StockExcelExporter {
     }
 
     private void createCell(Row row, int columnCount, Object value, CellStyle style) {
-        // CORRECCIÓN: Obtenemos la hoja desde la fila para ajustar el ancho
-        Sheet sheet = row.getSheet(); 
         sheet.autoSizeColumn(columnCount);
-        
         Cell cell = row.createCell(columnCount);
+        
         if (value instanceof Integer) {
             cell.setCellValue((Integer) value);
         } else if (value instanceof Boolean) {
@@ -49,20 +45,16 @@ public class StockExcelExporter {
         cell.setCellStyle(style);
     }
 
-    private void writeDataLines(Sheet sheet) {
+    private void writeDataLines(CellStyle style) {
         int rowCount = 1;
-        
-        CellStyle style = sheet.getWorkbook().createCellStyle();
-        Font font = sheet.getWorkbook().createFont();
-        font.setFontHeightInPoints((short) 12);
-        style.setFont(font);
 
         for (Producto prod : listaProductos) {
             Row row = sheet.createRow(rowCount++);
             int columnCount = 0;
 
             createCell(row, columnCount++, prod.getNombre(), style);
-            // Validación de nulos para evitar errores
+            
+            // Validación de nulos
             String cat = (prod.getCategoria() != null) ? prod.getCategoria().getNombre() : "-";
             createCell(row, columnCount++, cat, style);
             
@@ -74,14 +66,47 @@ public class StockExcelExporter {
     }
 
     public void export(HttpServletResponse response) throws IOException {
-        try (Workbook workbook = new XSSFWorkbook()) {
-            Sheet sheet = workbook.createSheet("Stock Bajo");
-            
-            writeHeaderLine(sheet);
-            writeDataLines(sheet);
-            
-            ServletOutputStream outputStream = response.getOutputStream();
-            workbook.write(outputStream);
+        sheet = workbook.createSheet("Stock Bajo");
+
+        // 1. Crear Estilo para la Cabecera (Fondo azul, letra blanca, negrita, bordes)
+        CellStyle headerStyle = workbook.createCellStyle();
+        Font headerFont = workbook.createFont();
+        headerFont.setBold(true);
+        headerFont.setFontHeightInPoints((short) 14);
+        headerFont.setColor(IndexedColors.WHITE.getIndex()); // Letra Blanca
+        headerStyle.setFont(headerFont);
+        
+        headerStyle.setFillForegroundColor(IndexedColors.DARK_TEAL.getIndex()); // Fondo Azul Oscuro/Verde azulado
+        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        headerStyle.setBorderBottom(BorderStyle.THIN);
+        headerStyle.setBorderTop(BorderStyle.THIN);
+        headerStyle.setBorderRight(BorderStyle.THIN);
+        headerStyle.setBorderLeft(BorderStyle.THIN);
+
+        // 2. Crear Estilo para los Datos (Bordes negros simples)
+        CellStyle dataStyle = workbook.createCellStyle();
+        Font dataFont = workbook.createFont();
+        dataFont.setFontHeightInPoints((short) 12);
+        dataStyle.setFont(dataFont);
+        dataStyle.setBorderBottom(BorderStyle.THIN);
+        dataStyle.setBorderTop(BorderStyle.THIN);
+        dataStyle.setBorderRight(BorderStyle.THIN);
+        dataStyle.setBorderLeft(BorderStyle.THIN);
+
+        // 3. Escribir datos
+        writeHeaderLine(headerStyle);
+        writeDataLines(dataStyle);
+
+        // 4. Agregar Filtros Automáticos
+        // Los parámetros son: (PrimeraFila, ÚltimaFila, PrimeraColumna, ÚltimaColumna)
+        // Usamos sheet.getLastRowNum() para que el filtro cubra hasta la última fila de datos
+        if (listaProductos.size() > 0) {
+            sheet.setAutoFilter(new CellRangeAddress(0, 0, 0, 3));
         }
+
+        ServletOutputStream outputStream = response.getOutputStream();
+        workbook.write(outputStream);
+        workbook.close();
+        outputStream.close();
     }
 }

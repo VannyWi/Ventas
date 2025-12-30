@@ -25,4 +25,5 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
     
     List<Producto> findByStockLessThan(Integer cantidadCritica);
     List<Producto> findByStockLessThanAndActivoTrue(Integer cantidadCritica);
+    List<Producto> findByTiendaIdAndStockLessThanAndActivoTrue(Long tiendaId, Integer cantidadCritica);
 }
