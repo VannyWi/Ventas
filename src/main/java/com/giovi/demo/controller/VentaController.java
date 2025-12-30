@@ -240,49 +240,48 @@ public class VentaController {
             return "redirect:/ventas/crear";
         }
     }
-    @GetMapping("/mis-ventas")
+   @GetMapping("/mis-ventas")
     public String misVentas(Model model, Principal principal,
                             @RequestParam(required = false) LocalDate fechaInicio,
                             @RequestParam(required = false) LocalDate fechaFin) {
         
-        // 1. Validar Sesión
+        // 1. Verificar Sesión
         if (principal == null) return "redirect:/login";
-        String username = principal.getName();
-        Usuario usuario = usuarioRepository.findByUsername(username).orElse(null);
+        Usuario usuario = usuarioRepository.findByUsername(principal.getName()).orElse(null);
         if (usuario == null) return "redirect:/logout";
 
-        // 2. Filtro de Fechas (Default: HOY)
+        // 2. Filtro de Fechas
         if (fechaInicio == null) fechaInicio = LocalDate.now();
         if (fechaFin == null) fechaFin = LocalDate.now();
 
         LocalDateTime inicio = fechaInicio.atStartOfDay();
         LocalDateTime fin = fechaFin.atTime(LocalTime.MAX);
 
-        // 3. Obtener Ventas (Estrategia Híbrida: Filtramos en BD)
+        // 3. Obtener Ventas (Query eficiente)
+        // Asegúrate que tu VentaRepository tenga este método definido
         List<Venta> misVentas = ventaRepository.findByUsuarioIdAndFechaBetweenOrderByFechaDesc(
             usuario.getId(), inicio, fin
         );
 
-        // 4. Calcular Ingresos (KPIs) usando tu lógica segura
+        // 4. Calcular Totales - ADAPTADO A TU ENTIDAD 'Venta'
         Double mEfectivo = 0.0;
         Double mTarjeta = 0.0;
         Double mQr = 0.0;
 
         for (Venta v : misVentas) {
-            if (v.getMetodoPago() != null) {
-                String m = v.getMetodoPago().toLowerCase();
-                // Seguridad: Si total es null, asumimos 0.0
-                Double valor = (v.getMontoTotal() != null) ? v.getMontoTotal() : 0.0;
+            // CAMBIO 1: Usamos 'getMetodoPago()' que sí existe
+            String m = (v.getMetodoPago() != null) ? v.getMetodoPago().toLowerCase() : "";
+            
+            // CAMBIO 2: Usamos 'getMontoTotal()' en lugar de 'getTotal()'
+            // (Tu entidad Venta tiene 'private Double montoTotal')
+            Double valor = (v.getMontoTotal() != null) ? v.getMontoTotal() : 0.0;
 
-                // Lógica solicitada
-                if (m.contains("efectivo") || m.contains("contado")) {
-                    mEfectivo += valor;
-                } else if (m.contains("tarjeta") || m.contains("débito") || m.contains("crédito")) {
-                    mTarjeta += valor;
-                } else {
-                    // Asumimos que el resto es Yape/Plin/QR
-                    mQr += valor;
-                }
+            if (m.contains("efectivo") || m.contains("contado")) {
+                mEfectivo += valor;
+            } else if (m.contains("tarjeta") || m.contains("débito") || m.contains("crédito")) {
+                mTarjeta += valor;
+            } else {
+                mQr += valor;
             }
         }
 
@@ -291,7 +290,6 @@ public class VentaController {
         model.addAttribute("fechaInicio", fechaInicio);
         model.addAttribute("fechaFin", fechaFin);
         
-        // Totales para las Cards
         model.addAttribute("montoEfectivo", mEfectivo);
         model.addAttribute("montoTarjeta", mTarjeta);
         model.addAttribute("montoQr", mQr);
@@ -300,16 +298,20 @@ public class VentaController {
     }
 
     // ==========================================
-    // API PARA DETALLES (MODAL POPUP)
+    // API PARA EL POPUP - ADAPTADA A TUS ENTIDADES
     // ==========================================
     
     @GetMapping("/api/detalle/{id}")
     @ResponseBody
     public ResponseEntity<?> obtenerDetalleVenta(@PathVariable Long id) {
         return ventaRepository.findById(id).map(venta -> {
+            
+            // CAMBIO 3: Usamos 'getDetalleVenta()' (SINGULAR) 
+            // (Tu entidad Venta tiene 'private List<DetalleVenta> detalleVenta')
             List<Map<String, Object>> detalles = venta.getDetalleVenta().stream().map(d -> {
                 Map<String, Object> map = new HashMap<>();
                 
+                // Seguridad por si el producto fue borrado
                 String prodNombre = (d.getProducto() != null) ? d.getProducto().getNombre() : "Producto Eliminado";
                 String prodCodigo = (d.getProducto() != null) ? d.getProducto().getCodigoBarras() : "---";
 
@@ -318,11 +320,9 @@ public class VentaController {
                 map.put("cantidad", d.getCantidad());
                 map.put("precioUnitario", d.getPrecioUnitario());
                 
-                // Cálculo seguro del subtotal
-                Double subtotal = 0.0;
-                if(d.getCantidad() != null && d.getPrecioUnitario() != null){
-                    subtotal = d.getCantidad() * d.getPrecioUnitario();
-                }
+                // CAMBIO 4: Usamos 'getSubtotal()' directo de tu entidad DetalleVenta
+                // (Vi que tu entidad DetalleVenta ya tiene este campo y su getter)
+                Double subtotal = (d.getSubtotal() != null) ? d.getSubtotal() : 0.0;
                 map.put("subtotal", subtotal);
                 
                 return map;
