@@ -4,7 +4,6 @@
     <title>Stock Crítico - Vendedor</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     
     <style>
@@ -23,7 +22,7 @@
                 <h2 class="fw-bold text-danger mb-0">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>Stock Crítico
                 </h2>
-                <small class="text-muted">Productos con menos de 10 unidades en tu tienda asignada.</small>
+                <small class="text-muted">Productos activos con menos de 10 unidades.</small>
             </div>
             <div>
                 <a th:href="@{/productos/bajo-stock/exportar}" class="btn btn-success shadow-sm">
@@ -43,8 +42,7 @@
                                 <th>Categoría</th>
                                 <th>Precio</th>
                                 <th class="text-center">Stock Actual</th>
-                                <th class="text-center">Estado</th>
-                            </tr>
+                                </tr>
                         </thead>
                         <tbody>
                             <th:block th:each="p : ${listaProductos}">
@@ -65,11 +63,7 @@
                                         </span>
                                     </td>
                                     
-                                    <td class="text-center">
-                                        <span th:if="${p.stock == 0}" class="text-danger fw-bold small">AGOTADO</span>
-                                        <span th:if="${p.stock > 0}" class="text-warning fw-bold small text-dark">BAJO</span>
-                                    </td>
-                                </tr>
+                                    </tr>
                             </th:block>
                         </tbody>
                     </table>
@@ -79,7 +73,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
@@ -87,14 +80,13 @@
     <script>
         $(document).ready(function() {
             $('#tablaStock').DataTable({
-                "pageLength": 20, // Requisito: Mostrar 20 por defecto
+                "pageLength": 20,
                 "lengthMenu": [ [10, 20, 50, -1], [10, 20, 50, "Todos"] ],
-                "order": [ [4, 'asc'] ], // Ordenar por Stock (columna 4) ascendente
+                "order": [ [4, 'asc'] ], // Ordenar por Stock (ahora es la columna 4)
                 "language": {
                     "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
                 },
                 "drawCallback": function() {
-                    // Ajuste visual si la tabla se redibuja
                     $('.dataTables_paginate > .pagination').addClass('justify-content-center');
                 }
             });

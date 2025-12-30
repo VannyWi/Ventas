@@ -138,8 +138,7 @@ public class ProductoController {
         return sinTildes.toLowerCase().trim();
     }
     
-    // --- API PARA EL MODAL DE STOCK ---
-
+    // --- API STOCK ---
     @GetMapping("/api/buscar")
     @ResponseBody
     public ResponseEntity<?> buscarPorCodigoYTienda(@RequestParam String codigo, @RequestParam Long tiendaId) {
@@ -161,45 +160,32 @@ public class ProductoController {
             Map<String, String> response = new HashMap<>();
             response.put("mensaje", "Stock actualizado correctamente");
             return ResponseEntity.ok(response);
-            
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
     }
 
     // ==========================================
-    // NUEVOS MÉTODOS PARA STOCK CRÍTICO (CORREGIDO)
+    // NUEVOS MÉTODOS BAJO STOCK (ACTIVOS ONLY)
     // ==========================================
 
     @GetMapping("/bajo-stock")
     public String bajoStock(Model model, Principal principal) {
-        // 1. Verificación de seguridad de sesión
-        if (principal == null) {
-            return "redirect:/login";
-        }
+        if (principal == null) return "redirect:/login";
 
-        // CORRECCIÓN: Usamos 'username' porque tu entidad NO TIENE 'email'
-        String username = principal.getName();
-        
-        // CORRECCIÓN: Buscamos por username
-        Usuario usuario = usuarioRepository.findByUsername(username).orElse(null);
-
-        // 2. Verificación de usuario existente
-        if (usuario == null) {
-            return "redirect:/logout";
-        }
+        Usuario usuario = usuarioRepository.findByUsername(principal.getName()).orElse(null);
+        if (usuario == null) return "redirect:/logout";
 
         List<Producto> productosBajoStock;
 
-        // 3. Lógica de selección de datos
         if (usuario.getTienda() != null) {
-            // Caso VENDEDOR: Filtramos por SU tienda y stock < 10
+            // Filtra: Tienda Correcta + Stock < 10 + Activo = true
             productosBajoStock = productoRepository.findByTiendaIdAndStockLessThanAndActivoTrue(
                 usuario.getTienda().getId(), 
                 10
             );
         } else {
-            // Caso ADMIN o Sin tienda: Muestra todo lo bajo en stock
+            // Filtra: Stock < 10 + Activo = true (Global)
             productosBajoStock = productoRepository.findByStockLessThanAndActivoTrue(10);
         }
 
@@ -222,10 +208,7 @@ public class ProductoController {
         String headerValue = "attachment; filename=Stock_Critico_" + currentDateTime + ".xlsx";
         response.setHeader(headerKey, headerValue);
 
-        // CORRECCIÓN: Usamos 'username' aquí también
-        String username = principal.getName();
-        Usuario usuario = usuarioRepository.findByUsername(username).orElse(null);
-
+        Usuario usuario = usuarioRepository.findByUsername(principal.getName()).orElse(null);
         List<Producto> listProductos = new ArrayList<>();
 
         if (usuario != null) {
