@@ -4,91 +4,110 @@
     <title>Mis Ventas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     
     <style>
         .bg-light-yellow { background-color: #fff3cd; }
         .text-yellow-dark { color: #856404; }
         .filter-input { width: 140px; }
-        .table-responsive { overflow-x: auto; }
-        /* Estilo para el número de venta */
         .venta-id { font-family: 'Courier New', Courier, monospace; font-weight: bold; color: #4e73df; }
+        .card-stat { transition: transform 0.2s; }
+        .card-stat:hover { transform: translateY(-3px); }
     </style>
 </head>
 <body class="bg-light">
 
     <div th:replace="~{layout/fragments :: navbarVendedor}"></div>
 
-    <div class="container py-4">
+    <div class="container-fluid px-4 py-4">
         
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h4 class="fw-bold text-primary mb-0"><i class="bi bi-receipt-cutoff me-2"></i>Mis Ventas</h4>
-                    <small class="text-muted">Historial de transacciones.</small>
+                    <h4 class="fw-bold text-primary mb-0"><i class="bi bi-receipt me-2"></i>Mis Ventas</h4>
+                    <small class="text-muted">Historial de tus transacciones realizadas.</small>
                 </div>
                 
-                <form th:action="@{/ventas/mis-ventas}" method="get" class="d-flex align-items-center gap-2">
+                <form th:action="@{/ventas/mis-ventas}" method="get" id="filterForm" class="d-flex align-items-center gap-2">
                     <span class="fw-bold small text-muted">Filtrar:</span>
                     <input type="date" name="fechaInicio" class="form-control form-control-sm filter-input" th:value="${fechaInicio}">
                     <span class="text-muted">-</span>
                     <input type="date" name="fechaFin" class="form-control form-control-sm filter-input" th:value="${fechaFin}">
-                    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search me-1"></i>Buscar</button>
                 </form>
             </div>
         </div>
 
-        <h6 class="fw-bold text-muted mb-3">Ingresos (Filtrado)</h6>
-        <div class="row g-4 mb-4">
-            <div class="col-md-4">
-                <div class="card shadow-sm border-0 h-100">
+        <h6 class="fw-bold text-muted mb-3">Resumen Financiero (Filtrado)</h6>
+        <div class="row g-3 mb-4">
+            
+            <div class="col-xl-3 col-md-6">
+                <div class="card shadow-sm border-start border-4 border-success h-100 card-stat">
                     <div class="card-body d-flex align-items-center">
                         <div class="flex-shrink-0 bg-success bg-opacity-10 p-3 rounded">
                             <i class="bi bi-cash-stack text-success fs-3"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-0 text-muted">Efectivo</h6>
-                            <h3 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoEfectivo, 1, 'COMMA', 2, 'POINT')}">S/. 0.00</h3>
+                            <h6 class="mb-0 text-muted small text-uppercase">Efectivo</h6>
+                            <h4 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoEfectivo, 1, 'COMMA', 2, 'POINT')}">S/. 0.00</h4>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card shadow-sm border-0 h-100">
+
+            <div class="col-xl-3 col-md-6">
+                <div class="card shadow-sm border-start border-4 border-primary h-100 card-stat">
                     <div class="card-body d-flex align-items-center">
                         <div class="flex-shrink-0 bg-primary bg-opacity-10 p-3 rounded">
                             <i class="bi bi-credit-card-2-front text-primary fs-3"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-0 text-muted">Tarjeta</h6>
-                            <h3 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoTarjeta, 1, 'COMMA', 2, 'POINT')}">S/. 0.00</h3>
+                            <h6 class="mb-0 text-muted small text-uppercase">Tarjeta</h6>
+                            <h4 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoTarjeta, 1, 'COMMA', 2, 'POINT')}">S/. 0.00</h4>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card shadow-sm border-0 h-100">
+
+            <div class="col-xl-3 col-md-6">
+                <div class="card shadow-sm border-start border-4 border-warning h-100 card-stat">
                     <div class="card-body d-flex align-items-center">
                         <div class="flex-shrink-0 bg-light-yellow p-3 rounded">
                             <i class="bi bi-qr-code-scan text-yellow-dark fs-3"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-0 text-muted">Yape/Plin</h6>
-                            <h3 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoQr, 1, 'COMMA', 2, 'POINT')}">S/. 0.00</h3>
+                            <h6 class="mb-0 text-muted small text-uppercase">Yape/Plin</h6>
+                            <h4 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoQr, 1, 'COMMA', 2, 'POINT')}">S/. 0.00</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="card shadow-sm border-start border-4 border-dark h-100 card-stat bg-white">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 bg-dark bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-wallet2 text-dark fs-3"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-dark fw-bold small text-uppercase">TOTAL INGRESOS</h6>
+                            <h4 class="mb-0 fw-bold text-dark" 
+                                th:text="'S/. ' + ${#numbers.formatDecimal(montoTotalGeneral != null ? montoTotalGeneral : 0.0, 1, 'COMMA', 2, 'POINT')}">
+                                S/. 0.00
+                            </h4>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="card shadow-sm border-0">
+        <div class="card shadow-sm border-0 mb-5">
             <div class="card-body">
                 <div class="table-responsive">
                     <table id="tablaVentas" class="table table-hover align-middle w-100">
                         <thead class="table-light">
                             <tr>
-                                <th>Nro. Venta</th>
+                                <th>Nro. Ticket</th>
                                 <th>Fecha y Hora</th>
                                 <th>Cliente</th>
                                 <th>Método Pago</th>
@@ -99,7 +118,7 @@
                         <tbody>
                             <tr th:each="v : ${listaVentas}">
                                 <td>
-                                    <span class="venta-id" th:text="'#' + ${v.id}"></span>
+                                    <span class="venta-id" th:text="${v.numeroVenta}"></span>
                                 </td>
                                 
                                 <td th:text="${#temporals.format(v.fecha, 'dd/MM/yyyy HH:mm')}"></td>
@@ -107,20 +126,22 @@
                                 <td th:text="${v.cliente != null ? v.cliente.nombre : 'Público General'}"></td>
                                 
                                 <td>
-                                    <span class="badge bg-secondary bg-opacity-10 text-dark border" 
-                                          th:text="${v.metodoPago}"></span>
+                                    <span class="badge bg-secondary bg-opacity-10 text-dark border" th:text="${v.metodoPago}"></span>
                                 </td>
                                 
                                 <td class="text-end fw-bold text-success">
                                     <span th:if="${v.montoTotal != null}" 
-                                          th:text="'S/. ' + ${#numbers.formatDecimal(v.montoTotal, 1, 'COMMA', 2, 'POINT')}"></span>
+                                          th:text="'S/. ' + ${#numbers.formatDecimal(v.montoTotal, 1, 'COMMA', 2, 'POINT')}">
+                                    </span>
                                     <span th:if="${v.montoTotal == null}">S/. 0.00</span>
                                 </td>
                                 
                                 <td class="text-center">
-                                    <button class="btn btn-sm btn-outline-info" 
-                                            th:onclick="'verDetalle(' + ${v.id} + ')'" 
-                                            title="Ver detalle de productos">
+                                    <button class="btn btn-sm btn-outline-info btn-detalle" 
+                                            th:data-id="${v.id}"
+                                            th:data-ticket="${v.numeroVenta}"
+                                            onclick="verDetalle(this.getAttribute('data-id'), this.getAttribute('data-ticket'))"
+                                            title="Ver detalle">
                                         <i class="bi bi-eye-fill me-1"></i>Detalle
                                     </button>
                                 </td>
@@ -138,14 +159,14 @@
             <div class="modal-content">
                 <div class="modal-header bg-light">
                     <h5 class="modal-title fw-bold">
-                        <i class="bi bi-bag-check me-2"></i>Detalle Venta #<span id="modalVentaId"></span>
+                        <i class="bi bi-receipt me-2"></i>Ticket: <span id="modalTicketNro" class="text-primary"></span>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-sm table-bordered align-middle">
-                            <thead class="table-light">
+                        <table class="table table-striped mb-0">
+                            <thead class="table-dark">
                                 <tr>
                                     <th>Producto</th>
                                     <th class="text-center">Cant.</th>
@@ -158,50 +179,92 @@
                         </table>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <script>
-        $(document).ready(function() {
-            // DataTables configurado para 20 registros
-            $('#tablaVentas').DataTable({
-                "pageLength": 20,
-                "lengthMenu": [ [10, 20, 50, -1], [10, 20, 50, "Todos"] ],
-                "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
-                },
-                "order": [ [0, "desc"] ] 
-            });
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        
+        // CORRECCIÓN: Botón Atrás (BFCache)
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || (typeof Swal !== 'undefined' && Swal.isVisible())) {
+                Swal.close();
+                // Forzar ocultar backdrop si quedó pegado
+                $('.modal-backdrop').remove();
+                $('body').removeClass('modal-open');
+                $('body').css('padding-right', '');
+            }
         });
 
-        // Función AJAX para cargar detalles
-        function verDetalle(idVenta) {
+        $(document).ready(function() {
+            
+            // 1. Limpieza de URL (Elimina ?fechaInicio=... al cargar)
+            if (window.history.replaceState) {
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.replaceState({path: cleanUrl}, '', cleanUrl);
+            }
+
+            // 2. Configuración DataTables (20 por página + Buscador)
+            $('#tablaVentas').DataTable({
+                "pageLength": 20, // Forzar 20 filas
+                "lengthMenu": [ [10, 20, 50, -1], [10, 20, 50, "Todos"] ],
+                "ordering": true,
+                "order": [ [0, "desc"] ], // Ordenar por primera columna (Ticket) descendente
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+                }
+            });
+
+            // 3. Loading al Filtrar
+            const form = document.getElementById('filterForm');
+            if(form) {
+                form.addEventListener('submit', function() {
+                    Swal.fire({
+                        title: 'Buscando datos...',
+                        html: 'Por favor espere un momento',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+                });
+            }
+        });
+
+        // 4. Función para ver detalle (AJAX)
+        function verDetalle(idVenta, nroTicket) {
             const tbody = document.getElementById('tablaDetallesBody');
             
-            // Estado de carga
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3"><div class="spinner-border text-primary spinner-border-sm" role="status"></div> Cargando...</td></tr>';
-            document.getElementById('modalVentaId').textContent = idVenta;
+            // UI de carga inicial
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 text-muted small">Cargando productos...</div></td></tr>';
+            document.getElementById('modalTicketNro').textContent = nroTicket; 
             
             const modal = new bootstrap.Modal(document.getElementById('modalDetalle'));
             modal.show();
 
-            fetch(`/ventas/api/detalle/${idVenta}`)
-                .then(response => response.json())
+            // Petición al servidor
+            fetch('/ventas/api/detalle/' + idVenta)
+                .then(response => {
+                    if (!response.ok) throw new Error("Error en la red");
+                    return response.json();
+                })
                 .then(data => {
                     tbody.innerHTML = '';
                     let total = 0;
 
                     if(!data || data.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Sin detalles registrados</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Sin detalles registrados</td></tr>';
                         return;
                     }
 
@@ -210,29 +273,30 @@
                         tbody.innerHTML += `
                             <tr>
                                 <td>
-                                    <span class="fw-bold">${item.producto}</span><br>
+                                    <div class="fw-bold">${item.producto}</div>
                                     <small class="text-muted" style="font-size:0.85em">${item.codigo}</small>
                                 </td>
-                                <td class="text-center">${item.cantidad}</td>
-                                <td class="text-end">S/. ${item.precioUnitario.toFixed(2)}</td>
-                                <td class="text-end fw-bold">S/. ${item.subtotal.toFixed(2)}</td>
+                                <td class="text-center align-middle">${item.cantidad}</td>
+                                <td class="text-end align-middle">S/. ${item.precioUnitario.toFixed(2)}</td>
+                                <td class="text-end align-middle fw-bold">S/. ${item.subtotal.toFixed(2)}</td>
                             </tr>
                         `;
                     });
                     
-                    // Fila Total
+                    // Fila de Total
                     tbody.innerHTML += `
-                        <tr class="table-secondary border-top border-dark">
-                            <td colspan="3" class="text-end fw-bold">TOTAL VENTA:</td>
-                            <td class="text-end fw-bold text-success">S/. ${total.toFixed(2)}</td>
+                        <tr class="table-secondary border-top border-2 border-secondary">
+                            <td colspan="3" class="text-end fw-bold">TOTAL DE LA VENTA:</td>
+                            <td class="text-end fw-bold text-success fs-5">S/. ${total.toFixed(2)}</td>
                         </tr>
                     `;
                 })
                 .catch(err => {
                     console.error(err);
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error al cargar datos</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3"><i class="bi bi-exclamation-triangle me-1"></i>Error al cargar los detalles. Intente nuevamente.</td></tr>';
                 });
         }
+        /*]]>*/
     </script>
 </body>
 </html>

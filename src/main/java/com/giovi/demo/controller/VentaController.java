@@ -245,7 +245,7 @@ public class VentaController {
                             @RequestParam(required = false) LocalDate fechaInicio,
                             @RequestParam(required = false) LocalDate fechaFin) {
         
-        // 1. Verificar Sesión
+        // 1. Validar Login
         if (principal == null) return "redirect:/login";
         Usuario usuario = usuarioRepository.findByUsername(principal.getName()).orElse(null);
         if (usuario == null) return "redirect:/logout";
@@ -257,23 +257,19 @@ public class VentaController {
         LocalDateTime inicio = fechaInicio.atStartOfDay();
         LocalDateTime fin = fechaFin.atTime(LocalTime.MAX);
 
-        // 3. Obtener Ventas (Query eficiente)
-        // Asegúrate que tu VentaRepository tenga este método definido
+        // 3. Obtener Ventas
         List<Venta> misVentas = ventaRepository.findByUsuarioIdAndFechaBetweenOrderByFechaDesc(
             usuario.getId(), inicio, fin
         );
 
-        // 4. Calcular Totales - ADAPTADO A TU ENTIDAD 'Venta'
+        // 4. Calcular KPIs y Total General
         Double mEfectivo = 0.0;
         Double mTarjeta = 0.0;
         Double mQr = 0.0;
 
         for (Venta v : misVentas) {
-            // CAMBIO 1: Usamos 'getMetodoPago()' que sí existe
             String m = (v.getMetodoPago() != null) ? v.getMetodoPago().toLowerCase() : "";
-            
-            // CAMBIO 2: Usamos 'getMontoTotal()' en lugar de 'getTotal()'
-            // (Tu entidad Venta tiene 'private Double montoTotal')
+            // Usamos montoTotal como acordamos
             Double valor = (v.getMontoTotal() != null) ? v.getMontoTotal() : 0.0;
 
             if (m.contains("efectivo") || m.contains("contado")) {
@@ -284,8 +280,11 @@ public class VentaController {
                 mQr += valor;
             }
         }
+        
+        // NUEVO: Suma total de todo
+        Double mTotalGeneral = mEfectivo + mTarjeta + mQr;
 
-        // 5. Enviar datos a la vista
+        // 5. Enviar a la vista
         model.addAttribute("listaVentas", misVentas);
         model.addAttribute("fechaInicio", fechaInicio);
         model.addAttribute("fechaFin", fechaFin);
@@ -293,26 +292,22 @@ public class VentaController {
         model.addAttribute("montoEfectivo", mEfectivo);
         model.addAttribute("montoTarjeta", mTarjeta);
         model.addAttribute("montoQr", mQr);
+        model.addAttribute("montoTotalGeneral", mTotalGeneral); // Variable nueva
 
         return "Ventas/mis_ventas";
     }
 
     // ==========================================
-    // API PARA EL POPUP - ADAPTADA A TUS ENTIDADES
+    // API DETALLES (POPUP)
     // ==========================================
-    
     @GetMapping("/api/detalle/{id}")
     @ResponseBody
     public ResponseEntity<?> obtenerDetalleVenta(@PathVariable Long id) {
         return ventaRepository.findById(id).map(venta -> {
-            
-            // CAMBIO 3: Usamos 'getDetalleVenta()' (SINGULAR) 
-            // (Tu entidad Venta tiene 'private List<DetalleVenta> detalleVenta')
             List<Map<String, Object>> detalles = venta.getDetalleVenta().stream().map(d -> {
                 Map<String, Object> map = new HashMap<>();
                 
-                // Seguridad por si el producto fue borrado
-                String prodNombre = (d.getProducto() != null) ? d.getProducto().getNombre() : "Producto Eliminado";
+                String prodNombre = (d.getProducto() != null) ? d.getProducto().getNombre() : "Eliminado";
                 String prodCodigo = (d.getProducto() != null) ? d.getProducto().getCodigoBarras() : "---";
 
                 map.put("producto", prodNombre);
@@ -320,8 +315,6 @@ public class VentaController {
                 map.put("cantidad", d.getCantidad());
                 map.put("precioUnitario", d.getPrecioUnitario());
                 
-                // CAMBIO 4: Usamos 'getSubtotal()' directo de tu entidad DetalleVenta
-                // (Vi que tu entidad DetalleVenta ya tiene este campo y su getter)
                 Double subtotal = (d.getSubtotal() != null) ? d.getSubtotal() : 0.0;
                 map.put("subtotal", subtotal);
                 
