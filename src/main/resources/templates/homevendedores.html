@@ -13,9 +13,7 @@
 </head>
 <body class="bg-light">
 
-   <div th:if="${userLog.rol == 'VENDEDOR'}">
-        <div th:replace="~{layout/fragments :: navbarVendedor}"></div>
-    </div>
+    <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
 
     <div class="container-fluid px-4 py-4">
         
@@ -61,22 +59,21 @@
             </div>
         </div>
 
-        <div class="d-flex justify-content-between align-items-end mb-3 flex-wrap">
-            <h6 class="fw-bold text-gray-800 m-0 mb-2 mb-md-0"><i class="bi bi-wallet2 me-2"></i>Ingresos por Método</h6>
-            
-            <form th:action="@{/homevendedores}" method="get" class="d-flex gap-2 align-items-center bg-white p-2 rounded shadow-sm">
-                <input type="hidden" name="fechaInicioChart" th:value="${fechaInicioChart}">
-                <input type="hidden" name="fechaFinChart" th:value="${fechaFinChart}">
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-body py-2 bg-white rounded d-flex justify-content-between align-items-center flex-wrap">
+                <h6 class="fw-bold text-gray-800 m-0"><i class="bi bi-funnel me-2"></i>Filtrar Ingresos y Evolución</h6>
                 
-                <span class="small text-muted fw-bold">Rango:</span>
-                <input type="date" name="fechaInicioPago" class="form-control form-control-sm filter-input" th:value="${fechaInicioPago}">
-                <span class="text-muted">-</span>
-                <input type="date" name="fechaFinPago" class="form-control form-control-sm filter-input" th:value="${fechaFinPago}">
-                
-                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
-            </form>
+                <form th:action="@{/homevendedores}" method="get" class="d-flex gap-2 align-items-center mt-2 mt-md-0">
+                    <span class="small text-muted fw-bold">Rango:</span>
+                    <input type="date" name="fechaInicio" class="form-control form-control-sm filter-input" th:value="${fechaInicio}">
+                    <span class="text-muted">-</span>
+                    <input type="date" name="fechaFin" class="form-control form-control-sm filter-input" th:value="${fechaFin}">
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
+                </form>
+            </div>
         </div>
 
+        <h6 class="fw-bold text-muted mb-3">Ingresos (Filtrado)</h6>
         <div class="row g-4 mb-5">
             <div class="col-md-4">
                 <div class="card shadow-sm border-0 h-100">
@@ -122,19 +119,8 @@
         </div>
 
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap">
-                <h6 class="m-0 fw-bold text-primary"><i class="bi bi-bar-chart-line me-2"></i>Evolución de Ingresos</h6>
-                
-                <form th:action="@{/homevendedores}" method="get" class="d-flex gap-2 align-items-center mt-2 mt-md-0">
-                    <input type="hidden" name="fechaInicioPago" th:value="${fechaInicioPago}">
-                    <input type="hidden" name="fechaFinPago" th:value="${fechaFinPago}">
-                    
-                    <span class="small text-muted fw-bold">Periodo:</span>
-                    <input type="date" name="fechaInicioChart" class="form-control form-control-sm filter-input" th:value="${fechaInicioChart}">
-                    <span class="text-muted">-</span>
-                    <input type="date" name="fechaFinChart" class="form-control form-control-sm filter-input" th:value="${fechaFinChart}">
-                    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
-                </form>
+            <div class="card-header bg-white py-3">
+                <h6 class="m-0 fw-bold text-primary"><i class="bi bi-bar-chart-line me-2"></i>Evolución de Ingresos (Filtrado)</h6>
             </div>
             <div class="card-body">
                 <div style="height: 350px; width: 100%;">
@@ -149,6 +135,14 @@
 
     <script th:inline="javascript">
         /*<![CDATA[*/
+        
+        // LIMPIEZA DE URL (Truco Visual)
+        document.addEventListener("DOMContentLoaded", function() {
+            if (window.history.replaceState) {
+                window.history.replaceState(null, null, window.location.pathname);
+            }
+        });
+
         const chartLabels = /*[[${chartLabels}]]*/ [];
         const chartData = /*[[${chartData}]]*/ [];
 
