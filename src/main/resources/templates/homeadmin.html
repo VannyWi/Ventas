@@ -41,7 +41,9 @@
                                 <p class="text-uppercase text-muted small fw-bold mb-1">Stock Crítico (Global)</p>
                                 <h3 class="text-danger fw-bold" th:text="${alertasStock}"></h3>
                             </div>
-                            <i class="bi bi-box-seam fs-1 text-danger opacity-25"></i>
+                            <a th:href="@{/homeadmin/exportar-stock}" class="btn btn-sm btn-outline-danger" title="Exportar Excel">
+                                <i class="bi bi-file-earmark-excel"></i>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -50,7 +52,7 @@
 
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body py-3 bg-white rounded">
-                <form th:action="@{/homeadmin}" method="get" class="row g-3 align-items-end">
+                <form th:action="@{/homeadmin}" method="get" class="row g-3 align-items-end" id="filterForm">
                     <div class="col-md-3">
                         <label class="form-label small fw-bold text-muted">Desde</label>
                         <input type="date" name="fechaInicio" class="form-control form-control-sm" th:value="${fechaInicio}">
@@ -59,23 +61,26 @@
                         <label class="form-label small fw-bold text-muted">Hasta</label>
                         <input type="date" name="fechaFin" class="form-control form-control-sm" th:value="${fechaFin}">
                     </div>
+                    
                     <div class="col-md-2">
                         <label class="form-label small fw-bold text-muted">Tienda</label>
-                        <select name="tiendaId" class="form-select form-select-sm">
+                        <select name="tiendaId" id="tiendaSelect" class="form-select form-select-sm" onchange="cargarUsuarios()">
                             <option value="">Todas</option>
                             <option th:each="t : ${listaTiendas}" th:value="${t.id}" th:text="${t.nombre}" th:selected="${selTiendaId == t.id}"></option>
                         </select>
                     </div>
+                    
                     <div class="col-md-2">
                         <label class="form-label small fw-bold text-muted">Vendedor</label>
-                        <select name="usuarioId" class="form-select form-select-sm">
+                        <select name="usuarioId" id="usuarioSelect" class="form-select form-select-sm" th:data-selected="${selUsuarioId}">
                             <option value="">Todos</option>
                             <option th:each="u : ${listaUsuarios}" th:value="${u.id}" th:text="${u.nombre}" th:selected="${selUsuarioId == u.id}"></option>
                         </select>
                     </div>
+                    
                     <div class="col-md-2 d-flex gap-2">
                         <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-search me-1"></i>Filtrar</button>
-                        <a th:href="@{/homeadmin}" class="btn btn-sm btn-outline-secondary w-50" title="Limpiar Filtros"><i class="bi bi-arrow-counterclockwise"></i></a>
+                        <a th:href="@{/homeadmin}" class="btn btn-sm btn-outline-secondary w-50" title="Limpiar"><i class="bi bi-arrow-counterclockwise"></i></a>
                     </div>
                 </form>
             </div>
@@ -146,64 +151,110 @@
 
     <script th:inline="javascript">
         /*<![CDATA[*/
-        // 1. TOP PRODUCTOS
-        new Chart(document.getElementById('chartTop'), {
-            type: 'bar',
-            data: {
-                labels: /*[[${topProdLabels}]]*/ [],
-                datasets: [{
-                    label: 'Unidades Vendidas',
-                    data: /*[[${topProdData}]]*/ [],
-                    backgroundColor: '#4e73df',
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                indexAxis: 'y',
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
+        
+        // --- 1. LÓGICA DE USUARIOS DINÁMICOS ---
+        function cargarUsuarios() {
+            const tiendaId = document.getElementById('tiendaSelect').value;
+            const usuarioSelect = document.getElementById('usuarioSelect');
+            const usuarioPreseleccionado = usuarioSelect.getAttribute('data-selected');
+
+            // Limpiar opciones actuales
+            usuarioSelect.innerHTML = '<option value="">Cargando...</option>';
+
+            // URL del API
+            let url = '/api/usuarios-por-tienda';
+            if (tiendaId) {
+                url += '?tiendaId=' + tiendaId;
             }
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    usuarioSelect.innerHTML = '<option value="">Todos</option>';
+                    data.forEach(user => {
+                        const selected = (user.id == usuarioPreseleccionado) ? 'selected' : '';
+                        usuarioSelect.innerHTML += `<option value="${user.id}" ${selected}>${user.nombre}</option>`;
+                    });
+                })
+                .catch(error => {
+                    console.error('Error cargando usuarios:', error);
+                    usuarioSelect.innerHTML = '<option value="">Error al cargar</option>';
+                });
+        }
+
+        // --- 2. INICIALIZACIÓN ---
+        document.addEventListener("DOMContentLoaded", function() {
+            // A. Limpiar URL visualmente para que F5 reinicie filtros
+            if (window.history.replaceState) {
+                // Reemplazamos la URL actual con "/homeadmin" (sin parámetros)
+                // Esto es solo visual, los datos ya se cargaron con los filtros
+                window.history.replaceState(null, null, window.location.pathname);
+            }
+
+            // B. Inicializar gráficos (Chart.js)
+            initCharts();
         });
 
-        // 2. CATEGORÍAS
-        new Chart(document.getElementById('chartCat'), {
-            type: 'doughnut',
-            data: {
-                labels: /*[[${catLabels}]]*/ [],
-                datasets: [{
-                    data: /*[[${catData}]]*/ [],
-                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'right' } }
-            }
-        });
-
-        // 3. VENDEDORES (BARRAS)
-        new Chart(document.getElementById('chartVendedores'), {
-            type: 'bar',
-            data: {
-                labels: /*[[${vendLabels}]]*/ [],
-                datasets: [{
-                    label: 'Ganancia Generada (S/.)',
-                    data: /*[[${vendData}]]*/ [],
-                    backgroundColor: '#1cc88a',
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: function(c) { return ' S/. ' + c.raw.toFixed(2); } } }
+        function initCharts() {
+            // Top Productos
+            new Chart(document.getElementById('chartTop'), {
+                type: 'bar',
+                data: {
+                    labels: /*[[${topProdLabels}]]*/ [],
+                    datasets: [{
+                        label: 'Unidades Vendidas',
+                        data: /*[[${topProdData}]]*/ [],
+                        backgroundColor: '#4e73df',
+                        borderRadius: 4
+                    }]
                 },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
+                options: {
+                    indexAxis: 'y',
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Categorías
+            new Chart(document.getElementById('chartCat'), {
+                type: 'doughnut',
+                data: {
+                    labels: /*[[${catLabels}]]*/ [],
+                    datasets: [{
+                        data: /*[[${catData}]]*/ [],
+                        backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } }
+                }
+            });
+
+            // Vendedores
+            new Chart(document.getElementById('chartVendedores'), {
+                type: 'bar',
+                data: {
+                    labels: /*[[${vendLabels}]]*/ [],
+                    datasets: [{
+                        label: 'Ganancia Generada (S/.)',
+                        data: /*[[${vendData}]]*/ [],
+                        backgroundColor: '#1cc88a',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: function(c) { return ' S/. ' + c.raw.toFixed(2); } } }
+                    },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
         /*]]>*/
     </script>
 </body>
