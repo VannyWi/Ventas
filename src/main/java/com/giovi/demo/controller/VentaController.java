@@ -3,6 +3,7 @@ package com.giovi.demo.controller;
 import com.giovi.demo.entity.*;
 import com.giovi.demo.repository.*;
 import com.giovi.demo.service.VentaPdfService;
+import com.giovi.demo.util.MisVentasExcelExporter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -323,5 +325,47 @@ public class VentaController {
             
             return ResponseEntity.ok(detalles);
         }).orElse(ResponseEntity.notFound().build());
+    }
+    @GetMapping("/mis-ventas/exportar")
+    public void exportarMisVentasExcel(HttpServletResponse response, Principal principal,
+                                       @RequestParam(required = false) LocalDate fechaInicio,
+                                       @RequestParam(required = false) LocalDate fechaFin) throws IOException {
+        
+        if (principal == null) {
+            response.sendRedirect("/login");
+            return;
+        }
+        Usuario usuario = usuarioRepository.findByUsername(principal.getName()).orElse(null);
+        if (usuario == null) {
+            response.sendRedirect("/logout");
+            return;
+        }
+
+        // Manejo de Fechas
+        if (fechaInicio == null) fechaInicio = LocalDate.now();
+        if (fechaFin == null) fechaFin = LocalDate.now();
+
+        LocalDateTime inicio = fechaInicio.atStartOfDay();
+        LocalDateTime fin = fechaFin.atTime(LocalTime.MAX);
+
+        // Obtener datos
+        List<Venta> listaVentas = ventaRepository.findByUsuarioIdAndFechaBetweenOrderByFechaDesc(
+            usuario.getId(), inicio, fin
+        );
+
+        // LIMPIEZA DE BUFFER (Evita archivo corrupto)
+        response.reset();
+        
+        response.setContentType("application/octet-stream");
+        String headerKey = "Content-Disposition";
+        
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        String fechaStr = fechaInicio.format(fmt) + "_al_" + fechaFin.format(fmt);
+        String headerValue = "attachment; filename=Mis_Ventas_" + fechaStr + ".xlsx";
+        
+        response.setHeader(headerKey, headerValue);
+
+        MisVentasExcelExporter excelExporter = new MisVentasExcelExporter(listaVentas, fechaInicio, fechaFin);
+        excelExporter.export(response);
     }
 }
