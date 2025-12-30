@@ -2,9 +2,8 @@ package com.giovi.demo.controller;
 
 import com.giovi.demo.entity.Producto;
 import com.giovi.demo.entity.Usuario;
-import com.giovi.demo.entity.Venta; // Asegúrate de importar Venta si se usa en listas
+import com.giovi.demo.entity.Venta;
 import com.giovi.demo.repository.*;
-import com.giovi.demo.util.StockExcelExporter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
@@ -34,7 +33,7 @@ public class DashboardController {
     @Autowired private UsuarioRepository usuarioRepo;
     @Autowired private TiendaRepository tiendaRepo;
 
-    // --- API NUEVA: CARGA DINÁMICA DE USUARIOS ---
+    // --- API CARGA DINÁMICA USUARIOS ---
     @GetMapping("/api/usuarios-por-tienda")
     @ResponseBody
     public List<Map<String, Object>> getUsuariosPorTienda(@RequestParam(required = false) Long tiendaId) {
@@ -44,8 +43,6 @@ public class DashboardController {
         } else {
             usuarios = usuarioRepo.findByTiendaId(tiendaId);
         }
-        
-        // Convertimos a Map simple para evitar problemas de recursión JSON y enviar solo lo necesario
         return usuarios.stream().map(u -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", u.getId());
@@ -65,10 +62,23 @@ public class DashboardController {
                             @RequestParam(required = false) Long tiendaId,
                             @RequestParam(required = false) Long usuarioId) {
         
-        // --- 1. KPIs GLOBALES (Siempre HOY) ---
+        // --- 1. DEFINICIÓN DE FECHAS ---
+        
+        // A. Fechas Globales (HOY) - Para KPIs Superiores
         LocalDateTime inicioHoy = LocalDate.now().atStartOfDay();
         LocalDateTime finHoy = LocalDate.now().atTime(LocalTime.MAX);
 
+        // B. Fechas Históricas (TODO) - Para Top Productos y Categorías
+        LocalDateTime inicioHistorico = LocalDateTime.of(2025, 1, 1, 0, 0); // Fecha muy antigua
+        LocalDateTime finHistorico = LocalDateTime.now().plusYears(100);    // Fecha futura
+
+        // C. Fechas Filtro (INPUT USUARIO) - Para Ingresos y Rendimiento Vendedores
+        LocalDate fInicio = (fechaInicio != null && !fechaInicio.isEmpty()) ? LocalDate.parse(fechaInicio) : LocalDate.now();
+        LocalDate fFin = (fechaFin != null && !fechaFin.isEmpty()) ? LocalDate.parse(fechaFin) : LocalDate.now();
+        LocalDateTime inicioFiltro = fInicio.atStartOfDay();
+        LocalDateTime finFiltro = fFin.atTime(LocalTime.MAX);
+
+        // --- 2. KPIs SUPERIORES (GLOBALES DE HOY) ---
         Double totalVentas = ventaRepo.sumarVentasPorFecha(inicioHoy, finHoy);
         Long cantidadTickets = ventaRepo.contarVentasPorFecha(inicioHoy, finHoy);
         List<Producto> todoStockBajo = productoRepo.findByStockLessThanAndActivoTrue(10);
@@ -77,16 +87,20 @@ public class DashboardController {
         model.addAttribute("cantidadTickets", cantidadTickets != null ? cantidadTickets : 0);
         model.addAttribute("alertasStock", todoStockBajo.size());
 
-        // --- 2. FILTROS ---
-        LocalDate fFin = (fechaFin != null && !fechaFin.isEmpty()) ? LocalDate.parse(fechaFin) : LocalDate.now();
-        LocalDate fInicio = (fechaInicio != null && !fechaInicio.isEmpty()) ? LocalDate.parse(fechaInicio) : LocalDate.now();
+        // --- 3. GRÁFICOS HISTÓRICOS (SIN FILTROS - TODOS LOS DATOS) ---
+        // CAMBIO: Usamos inicioHistorico y finHistorico
         
-        LocalDateTime inicioFiltro = fInicio.atStartOfDay();
-        LocalDateTime finFiltro = fFin.atTime(LocalTime.MAX);
+        // Top 10 Productos (Histórico Global)
+        List<Object[]> topProductos = detalleRepo.encontrarTopProductosFiltrado(inicioHistorico, finHistorico, null, null, PageRequest.of(0, 10));
+        cargarDatosGrafico(model, topProductos, "topProdLabels", "topProdData");
 
-        // --- 3. DATOS FILTRADOS ---
+        // Categorías (Histórico Global)
+        List<Object[]> categorias = detalleRepo.encontrarCategoriasFiltrado(inicioHistorico, finHistorico, null, null);
+        cargarDatosGrafico(model, categorias, "catLabels", "catData");
+
+        // --- 4. DATOS QUE RESPONDEN A FILTROS (Tarjetas e Ingresos) ---
         
-        // Tarjetas Pagos
+        // Tarjetas Pagos (Filtradas por fecha/tienda/usuario)
         List<Object[]> pagosData = ventaRepo.sumarVentasPorMetodoPagoFiltrado(inicioFiltro, finFiltro, tiendaId, usuarioId);
         Double mEfectivo = 0.0, mTarjeta = 0.0, mQr = 0.0;
         for (Object[] row : pagosData) {
@@ -98,18 +112,11 @@ public class DashboardController {
                 else mQr += v;
             }
         }
-        
         model.addAttribute("montoEfectivo", mEfectivo);
         model.addAttribute("montoTarjeta", mTarjeta);
         model.addAttribute("montoQr", mQr);
 
-        // Gráficos
-        List<Object[]> topProductos = detalleRepo.encontrarTopProductosFiltrado(inicioFiltro, finFiltro, tiendaId, usuarioId, PageRequest.of(0, 10));
-        cargarDatosGrafico(model, topProductos, "topProdLabels", "topProdData");
-
-        List<Object[]> categorias = detalleRepo.encontrarCategoriasFiltrado(inicioFiltro, finFiltro, tiendaId, usuarioId);
-        cargarDatosGrafico(model, categorias, "catLabels", "catData");
-
+        // Gráfico Ganancias por Vendedor (Filtrado por fecha/tienda/usuario)
         List<Object[]> vendedoresData = ventaRepo.encontrarVentasPorVendedorYTienda(inicioFiltro, finFiltro, tiendaId, usuarioId);
         List<String> vendLabels = new ArrayList<>();
         List<Double> vendData = new ArrayList<>();
@@ -122,11 +129,8 @@ public class DashboardController {
         model.addAttribute("vendLabels", vendLabels);
         model.addAttribute("vendData", vendData);
 
-        // --- 4. COMBOS Y ESTADO ---
+        // --- 5. COMBOS Y ESTADO ---
         model.addAttribute("listaTiendas", tiendaRepo.findAll());
-        // NO enviamos listaUsuarios aquí, se carga por JS o se carga una lista vacía inicial
-        // Sin embargo, para que el filtro funcione al recargar (si se usa la url), enviamos todos O los filtrados
-        // Lo mejor para UX dinámica es enviar todos al inicio O solo los de la tienda seleccionada
         if(tiendaId != null) {
             model.addAttribute("listaUsuarios", usuarioRepo.findByTiendaId(tiendaId));
         } else {
@@ -156,15 +160,7 @@ public class DashboardController {
         model.addAttribute(dataAttr, values);
     }
 
-    // Exportar Stock Admin
-    @GetMapping("/homeadmin/exportar-stock")
-    public void exportarStockAdmin(HttpServletResponse response) throws IOException {
-        prepararExcel(response, "stock_critico_global");
-        List<Producto> listaProductos = productoRepo.findByStockLessThanAndActivoTrue(10);
-        StockExcelExporter excelExporter = new StockExcelExporter(listaProductos);
-        excelExporter.export(response);
-    }
-
+    // Helper Excel Generico
     private void prepararExcel(HttpServletResponse response, String nombreArchivo) {
         response.setContentType("application/octet-stream");
         DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss");
@@ -175,7 +171,7 @@ public class DashboardController {
     }
 
     // ==========================================
-    // 2. SECCIÓN VENDEDOR (SE MANTIENE IGUAL)
+    // 2. SECCIÓN VENDEDOR (SIN CAMBIOS)
     // ==========================================
     @GetMapping("/homevendedores")
     public String homeVendedores(Model model, Authentication auth,

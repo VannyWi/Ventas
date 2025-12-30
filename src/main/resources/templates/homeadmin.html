@@ -20,16 +20,26 @@
             <div class="col-md-4">
                 <div class="card bg-white shadow-sm h-100 border-start border-4 border-success">
                     <div class="card-body">
-                        <p class="text-uppercase text-muted small fw-bold mb-1">Ventas del Día (Global)</p>
-                        <h3 class="text-success fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(totalVentas, 1, 'COMMA', 2, 'POINT')}"></h3>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-uppercase text-muted small fw-bold mb-1">Ventas del Día (Global)</p>
+                                <h3 class="text-success fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(totalVentas, 1, 'COMMA', 2, 'POINT')}"></h3>
+                            </div>
+                            <i class="bi bi-cash-coin fs-1 text-success opacity-25"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="card bg-white shadow-sm h-100 border-start border-4 border-primary">
                     <div class="card-body">
-                        <p class="text-uppercase text-muted small fw-bold mb-1">Tickets Emitidos</p>
-                        <h3 class="text-primary fw-bold" th:text="${cantidadTickets}"></h3>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-uppercase text-muted small fw-bold mb-1">Tickets Emitidos</p>
+                                <h3 class="text-primary fw-bold" th:text="${cantidadTickets}"></h3>
+                            </div>
+                            <i class="bi bi-receipt fs-1 text-primary opacity-25"></i>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -41,17 +51,31 @@
                                 <p class="text-uppercase text-muted small fw-bold mb-1">Stock Crítico (Global)</p>
                                 <h3 class="text-danger fw-bold" th:text="${alertasStock}"></h3>
                             </div>
-                            <a th:href="@{/homeadmin/exportar-stock}" class="btn btn-sm btn-outline-danger" title="Exportar Excel">
-                                <i class="bi bi-file-earmark-excel"></i>
-                            </a>
+                            <i class="bi bi-exclamation-triangle fs-1 text-danger opacity-25"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
+        <div class="row g-4 mb-4">
+            <div class="col-lg-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white py-3"><h6 class="m-0 fw-bold text-dark">Top 10 Productos (Histórico Global)</h6></div>
+                    <div class="card-body"><canvas id="chartTop"></canvas></div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-white py-3"><h6 class="m-0 fw-bold text-dark">Ventas por Categoría (Histórico Global)</h6></div>
+                    <div class="card-body"><div style="height: 300px; display:flex; justify-content:center;"><canvas id="chartCat"></canvas></div></div>
+                </div>
+            </div>
+        </div>
+
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body py-3 bg-white rounded">
+                <h6 class="fw-bold text-muted mb-3"><i class="bi bi-funnel"></i> Filtrar Ingresos y Rendimiento</h6>
                 <form th:action="@{/homeadmin}" method="get" class="row g-3 align-items-end" id="filterForm">
                     <div class="col-md-3">
                         <label class="form-label small fw-bold text-muted">Desde</label>
@@ -78,9 +102,8 @@
                         </select>
                     </div>
                     
-                    <div class="col-md-2 d-flex gap-2">
+                    <div class="col-md-2">
                         <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-search me-1"></i>Filtrar</button>
-                        <a th:href="@{/homeadmin}" class="btn btn-sm btn-outline-secondary w-50" title="Limpiar"><i class="bi bi-arrow-counterclockwise"></i></a>
                     </div>
                 </form>
             </div>
@@ -123,23 +146,8 @@
             </div>
         </div>
 
-        <div class="row g-4 mb-4">
-            <div class="col-lg-6">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-white py-3"><h6 class="m-0 fw-bold text-dark">Top 10 Productos</h6></div>
-                    <div class="card-body"><canvas id="chartTop"></canvas></div>
-                </div>
-            </div>
-            <div class="col-lg-6">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-white py-3"><h6 class="m-0 fw-bold text-dark">Ventas por Categoría</h6></div>
-                    <div class="card-body"><div style="height: 300px; display:flex; justify-content:center;"><canvas id="chartCat"></canvas></div></div>
-                </div>
-            </div>
-        </div>
-
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white py-3"><h6 class="m-0 fw-bold text-dark">Ganancias por Vendedor / Tienda</h6></div>
+            <div class="card-header bg-white py-3"><h6 class="m-0 fw-bold text-dark">Ganancias por Vendedor / Tienda (Filtrado)</h6></div>
             <div class="card-body">
                 <div style="height: 350px;"><canvas id="chartVendedores"></canvas></div>
             </div>
@@ -152,20 +160,15 @@
     <script th:inline="javascript">
         /*<![CDATA[*/
         
-        // --- 1. LÓGICA DE USUARIOS DINÁMICOS ---
         function cargarUsuarios() {
             const tiendaId = document.getElementById('tiendaSelect').value;
             const usuarioSelect = document.getElementById('usuarioSelect');
             const usuarioPreseleccionado = usuarioSelect.getAttribute('data-selected');
 
-            // Limpiar opciones actuales
             usuarioSelect.innerHTML = '<option value="">Cargando...</option>';
 
-            // URL del API
             let url = '/api/usuarios-por-tienda';
-            if (tiendaId) {
-                url += '?tiendaId=' + tiendaId;
-            }
+            if (tiendaId) url += '?tiendaId=' + tiendaId;
 
             fetch(url)
                 .then(response => response.json())
@@ -175,28 +178,19 @@
                         const selected = (user.id == usuarioPreseleccionado) ? 'selected' : '';
                         usuarioSelect.innerHTML += `<option value="${user.id}" ${selected}>${user.nombre}</option>`;
                     });
-                })
-                .catch(error => {
-                    console.error('Error cargando usuarios:', error);
-                    usuarioSelect.innerHTML = '<option value="">Error al cargar</option>';
                 });
         }
 
-        // --- 2. INICIALIZACIÓN ---
         document.addEventListener("DOMContentLoaded", function() {
-            // A. Limpiar URL visualmente para que F5 reinicie filtros
+            // Limpieza URL visual
             if (window.history.replaceState) {
-                // Reemplazamos la URL actual con "/homeadmin" (sin parámetros)
-                // Esto es solo visual, los datos ya se cargaron con los filtros
                 window.history.replaceState(null, null, window.location.pathname);
             }
-
-            // B. Inicializar gráficos (Chart.js)
             initCharts();
         });
 
         function initCharts() {
-            // Top Productos
+            // TOP PRODUCTOS (HISTÓRICO)
             new Chart(document.getElementById('chartTop'), {
                 type: 'bar',
                 data: {
@@ -215,7 +209,7 @@
                 }
             });
 
-            // Categorías
+            // CATEGORÍAS (HISTÓRICO)
             new Chart(document.getElementById('chartCat'), {
                 type: 'doughnut',
                 data: {
@@ -233,13 +227,13 @@
                 }
             });
 
-            // Vendedores
+            // VENDEDORES (FILTRADO)
             new Chart(document.getElementById('chartVendedores'), {
                 type: 'bar',
                 data: {
                     labels: /*[[${vendLabels}]]*/ [],
                     datasets: [{
-                        label: 'Ganancia Generada (S/.)',
+                        label: 'Ganancia (S/.)',
                         data: /*[[${vendData}]]*/ [],
                         backgroundColor: '#1cc88a',
                         borderRadius: 4
