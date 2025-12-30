@@ -5,62 +5,48 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .filter-group { font-size: 0.85rem; }
-        .filter-group input { padding: 0.25rem 0.5rem; font-size: 0.85rem; }
-    </style>
 </head>
 <body class="bg-light">
 
-    <div th:if="${userLog.rol == 'VENDEDOR'}">
-        <div th:replace="~{layout/fragments :: navbarVendedor}"></div>
-    </div>
+    <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
 
     <div class="container-fluid px-4 py-4">
         
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h4 class="mb-0 text-gray-800">Hola, <span th:text="${nombreVendedor}" class="text-primary fw-bold"></span></h4>
-                <small class="text-muted">Tienda: <span th:text="${nombreTienda}"></span></small>
-            </div>
-            <a th:href="@{/ventas/crear}" class="btn btn-primary shadow-sm">
-                <i class="bi bi-cart-plus me-2"></i>Nueva Venta
-            </a>
-        </div>
-
         <div class="row g-4 mb-4">
-            <div class="col-md-6 col-xl-4">
+            <div class="col-md-4">
                 <div class="card bg-white shadow-sm h-100 border-start border-4 border-info">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <p class="text-uppercase text-muted small fw-bold mb-1">Mis Ventas (Hoy)</p>
-                                <h3 class="text-info fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(misVentas, 1, 'COMMA', 2, 'POINT')}"></h3>
+                                <h3 class="text-info fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(misVentas, 1, 'COMMA', 2, 'POINT')}">S/. 0.00</h3>
                             </div>
                             <i class="bi bi-cash-coin fs-1 text-info opacity-25"></i>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6 col-xl-4">
+            
+            <div class="col-md-4">
                 <div class="card bg-white shadow-sm h-100 border-start border-4 border-success">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <p class="text-uppercase text-muted small fw-bold mb-1">Tickets (Hoy)</p>
-                                <h3 class="text-success fw-bold" th:text="${misTickets}"></h3>
+                                <p class="text-uppercase text-muted small fw-bold mb-1">Mis Tickets (Hoy)</p>
+                                <h3 class="text-success fw-bold" th:text="${misTickets}">0</h3>
                             </div>
                             <i class="bi bi-receipt fs-1 text-success opacity-25"></i>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-12 col-xl-4">
+            
+            <div class="col-md-4">
                 <div class="card bg-white shadow-sm h-100 border-start border-4 border-danger">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <p class="text-uppercase text-muted small fw-bold mb-1">Stock Bajo (Mi Tienda)</p>
+                                <p class="text-uppercase text-muted small fw-bold mb-1">Stock Bajo (Tienda)</p>
                                 <h3 class="text-danger fw-bold" th:text="${alertaStock}">0</h3>
                             </div>
                             <i class="bi bi-box-seam fs-1 text-danger opacity-25"></i>
@@ -70,57 +56,65 @@
             </div>
         </div>
 
-        <div class="row g-4 mb-4">
-            
-            <div class="col-lg-5">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-wallet2 me-2 text-primary"></i>Métodos Pago (Cant.)</h6>
-                        
-                        <div class="d-flex align-items-center gap-2 filter-group bg-light p-1 rounded">
-                            <input type="date" id="startPago" th:value="${fechaHoy}" class="form-control border-0 bg-transparent" style="width: 110px;">
-                            <span class="text-muted">-</span>
-                            <input type="date" id="endPago" th:value="${fechaHoy}" class="form-control border-0 bg-transparent" style="width: 110px;">
-                            <button onclick="actualizarGrafico()" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
-                        </div>
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-body py-2">
+                <form th:action="@{/homevendedores}" method="get" class="row g-2 align-items-center justify-content-end">
+                    <div class="col-auto"><span class="fw-bold text-muted small">FILTRAR DATOS:</span></div>
+                    <div class="col-auto">
+                        <input type="date" name="fechaInicio" class="form-control form-control-sm" th:value="${fechaInicio}">
                     </div>
-                    <div class="card-body d-flex justify-content-center align-items-center">
-                        <div style="height: 250px; width: 100%;"><canvas id="chartPagos"></canvas></div>
+                    <div class="col-auto text-muted">-</div>
+                    <div class="col-auto">
+                        <input type="date" name="fechaFin" class="form-control form-control-sm" th:value="${fechaFin}">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i> Actualizar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 bg-success bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-cash-stack text-success fs-3"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted">Efectivo</h6>
+                            <h3 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoEfectivo, 1, 'COMMA', 2, 'POINT')}">S/. 0.00</h3>
+                            <small class="text-muted">ingreso total</small>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-lg-7">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                        <h6 class="m-0 fw-bold text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Stock Crítico</h6>
-                        <a th:href="@{/homevendedores/exportar-stock}" class="btn btn-sm btn-outline-danger">
-                            <i class="bi bi-file-earmark-excel me-1"></i>Excel
-                        </a>
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 bg-primary bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-credit-card-2-front text-primary fs-3"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted">Tarjeta</h6>
+                            <h3 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoTarjeta, 1, 'COMMA', 2, 'POINT')}">S/. 0.00</h3>
+                            <small class="text-muted">ingreso total</small>
+                        </div>
                     </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light sticky-top">
-                                    <tr>
-                                        <th class="ps-4">Producto</th>
-                                        <th>Categoría</th>
-                                        <th class="text-center">Stock</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr th:each="prod : ${stockBajoTienda}">
-                                        <td class="ps-4 fw-medium" th:text="${prod.nombre}"></td>
-                                        <td class="small text-muted" th:text="${prod.categoria.nombre}"></td>
-                                        <td class="text-center">
-                                            <span class="badge bg-danger bg-opacity-10 text-danger" th:text="${prod.stock}"></span>
-                                        </td>
-                                    </tr>
-                                    <tr th:if="${#lists.isEmpty(stockBajoTienda)}">
-                                        <td colspan="3" class="text-center py-4 text-muted">Inventario saludable.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 bg-warning bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-qr-code-scan text-warning fs-3"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted">QR / Digital</h6>
+                            <h3 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoQr, 1, 'COMMA', 2, 'POINT')}">S/. 0.00</h3>
+                            <small class="text-muted">ingreso total</small>
                         </div>
                     </div>
                 </div>
@@ -129,54 +123,11 @@
 
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white py-3">
-                <form th:action="@{/homevendedores}" method="get" class="row g-3 align-items-center">
-                    <div class="col-auto">
-                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-clock-history me-2"></i>Mis Ventas</h6>
-                    </div>
-                    <div class="col-auto ms-auto">
-                        <label class="visually-hidden">Desde</label>
-                        <input type="date" name="fechaInicio" class="form-control form-control-sm" th:value="${fechaInicio}" required>
-                    </div>
-                    <div class="col-auto">
-                        <label class="visually-hidden">Hasta</label>
-                        <input type="date" name="fechaFin" class="form-control form-control-sm" th:value="${fechaFin}" required>
-                    </div>
-                    <div class="col-auto">
-                        <button type="submit" class="btn btn-sm btn-dark"><i class="bi bi-filter me-1"></i>Filtrar</button>
-                    </div>
-                    <div class="col-auto border-start ps-3">
-                        <a th:href="@{/homevendedores/exportar-ventas(fechaInicio=${fechaInicio}, fechaFin=${fechaFin})}" 
-                           class="btn btn-sm btn-success text-white">
-                            <i class="bi bi-file-excel me-1"></i>Exportar Lista
-                        </a>
-                    </div>
-                </form>
+                <h6 class="m-0 fw-bold text-primary">Evolución de Ingresos (Por Día)</h6>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="ps-4">Ticket</th>
-                                <th>Fecha</th>
-                                <th>Cliente</th>
-                                <th>Método</th>
-                                <th class="text-end pe-4">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr th:each="v : ${historialVentas}">
-                                <td class="ps-4 fw-bold text-primary" th:text="${v.numeroVenta}"></td>
-                                <td th:text="${#temporals.format(v.fecha, 'dd/MM/yyyy HH:mm')}"></td>
-                                <td th:text="${v.cliente != null ? v.cliente.nombre : 'Público'}"></td>
-                                <td><span class="badge bg-light text-dark border" th:text="${v.metodoPago}"></span></td>
-                                <td class="text-end pe-4 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(v.montoTotal, 1, 'COMMA', 2, 'POINT')}"></td>
-                            </tr>
-                            <tr th:if="${#lists.isEmpty(historialVentas)}">
-                                <td colspan="5" class="text-center py-4">No hay ventas en este rango de fechas.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <div class="card-body">
+                <div style="height: 350px; width: 100%;">
+                    <canvas id="chartGanancias"></canvas>
                 </div>
             </div>
         </div>
@@ -186,44 +137,43 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script th:inline="javascript">
-        let chartPago;
+        /*<![CDATA[*/
+        const chartLabels = /*[[${chartLabels}]]*/ [];
+        const chartData = /*[[${chartData}]]*/ [];
 
-        document.addEventListener("DOMContentLoaded", function() {
-            actualizarGrafico();
-        });
-
-        function actualizarGrafico() {
-            let start = document.getElementById('startPago').value;
-            let end = document.getElementById('endPago').value;
-            let url = '/api/vendedor/grafico/pagos';
-
-            fetch(`${url}?inicio=${start}&fin=${end}`)
-                .then(response => response.json())
-                .then(data => {
-                    const ctx = document.getElementById('chartPagos').getContext('2d');
-                    if (chartPago) chartPago.destroy();
-
-                    chartPago = new Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: data.labels,
-                            datasets: [{
-                                data: data.data,
-                                backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e'],
-                                borderWidth: 0
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { position: 'right' },
-                                title: { display: true, text: 'Cantidad de Transacciones' }
+        const ctx = document.getElementById('chartGanancias').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Ingresos (S/.)',
+                    data: chartData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ' S/. ' + context.raw.toFixed(2);
                             }
                         }
-                    });
-                });
-        }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+        /*]]>*/
     </script>
 </body>
 </html>

@@ -4,8 +4,6 @@ import com.giovi.demo.entity.Producto;
 import com.giovi.demo.entity.Usuario;
 import com.giovi.demo.entity.Venta;
 import com.giovi.demo.repository.*;
-import com.giovi.demo.util.StockExcelExporter;
-import com.giovi.demo.util.VentasExcelExporter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
@@ -15,13 +13,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -36,20 +31,17 @@ public class DashboardController {
     // ==========================================
     // 1. SECCIÓN ADMINISTRADOR
     // ==========================================
-    
     @GetMapping("/homeadmin")
     public String homeAdmin(Model model) {
         LocalDateTime inicioHoy = LocalDate.now().atStartOfDay();
         LocalDateTime finHoy = LocalDate.now().atTime(LocalTime.MAX);
 
-        // KPIs
+        // KPIs Admin
         Double totalVentas = ventaRepo.sumarVentasPorFecha(inicioHoy, finHoy);
         Long cantidadTickets = ventaRepo.contarVentasPorFecha(inicioHoy, finHoy);
         
-        // Stock Bajo (Activos y < 10)
+        // Stock Bajo Global
         List<Producto> todoStockBajo = productoRepo.findByStockLessThanAndActivoTrue(10);
-        
-        // Limitamos visualización a 20 para no saturar la tabla
         List<Producto> stockBajoVista = todoStockBajo.stream().limit(20).collect(Collectors.toList());
         
         model.addAttribute("totalVentas", totalVentas != null ? totalVentas : 0.0);
@@ -63,19 +55,9 @@ public class DashboardController {
         return "homeadmin";
     }
 
-    // Exportar Stock Admin
-    @GetMapping("/homeadmin/exportar-stock")
-    public void exportarStockAdmin(HttpServletResponse response) throws IOException {
-        prepararExcel(response, "stock_critico_global");
-        List<Producto> listaProductos = productoRepo.findByStockLessThanAndActivoTrue(10);
-        StockExcelExporter excelExporter = new StockExcelExporter(listaProductos);
-        excelExporter.export(response);
-    }
-
     // ==========================================
-    // 2. SECCIÓN VENDEDOR
+    // 2. SECCIÓN VENDEDOR (REDISEÑADA)
     // ==========================================
-    
     @GetMapping("/homevendedores")
     public String homeVendedores(Model model, Authentication auth,
                                  @RequestParam(value = "fechaInicio", required = false) String fechaInicioStr,
@@ -86,83 +68,93 @@ public class DashboardController {
         if (usuarioOpt.isEmpty()) return "redirect:/login";
         Usuario vendedor = usuarioOpt.get();
 
-        // Fechas filtro (Tabla)
-        LocalDate fInicio = (fechaInicioStr != null && !fechaInicioStr.isEmpty()) ? LocalDate.parse(fechaInicioStr) : LocalDate.now();
+        // 1. FECHAS FILTRO (Afecta a Gráfico y Tarjetas de Pago)
+        // Por defecto: últimos 7 días
         LocalDate fFin = (fechaFinStr != null && !fechaFinStr.isEmpty()) ? LocalDate.parse(fechaFinStr) : LocalDate.now();
+        LocalDate fInicio = (fechaInicioStr != null && !fechaInicioStr.isEmpty()) ? LocalDate.parse(fechaInicioStr) : fFin.minusDays(6);
         
         LocalDateTime inicioFiltro = fInicio.atStartOfDay();
         LocalDateTime finFiltro = fFin.atTime(LocalTime.MAX);
 
-        // Fechas Hoy (KPIs)
+        // 2. KPIs SUPERIORES (Siempre HOY)
         LocalDateTime inicioHoy = LocalDate.now().atStartOfDay();
         LocalDateTime finHoy = LocalDate.now().atTime(LocalTime.MAX);
         
         Double misVentasHoy = ventaRepo.sumarVentasVendedorHoy(vendedor.getId(), inicioHoy, finHoy);
         Long misTicketsHoy = ventaRepo.contarVentasVendedorHoy(vendedor.getId(), inicioHoy, finHoy);
 
-        // Lista Historial Ventas
-        List<Venta> historialVentas = ventaRepo.findByUsuarioIdAndFechaBetweenOrderByFechaDesc(
-                vendedor.getId(), inicioFiltro, finFiltro);
-
-        // Lista Stock Bajo Tienda
         List<Producto> stockBajoTienda = new ArrayList<>();
         if (vendedor.getTienda() != null) {
             stockBajoTienda = productoRepo.findByTiendaIdAndStockLessThanAndActivoTrue(vendedor.getTienda().getId(), 10);
         }
 
-        model.addAttribute("nombreVendedor", vendedor.getNombre());
-        model.addAttribute("nombreTienda", vendedor.getTienda() != null ? vendedor.getTienda().getNombre() : "Sin Tienda");
+        // 3. TARJETAS MÉTODOS DE PAGO (Suma de DINERO filtrada por fecha)
+        // Usamos 'sumarMetodosPagoVendedor' que definimos previamente en el repo
+        List<Object[]> pagosData = ventaRepo.sumarMetodosPagoVendedor(vendedor.getId(), inicioFiltro, finFiltro);
+        
+        Double montoEfectivo = 0.0;
+        Double montoTarjeta = 0.0;
+        Double montoQr = 0.0;
+
+        for (Object[] row : pagosData) {
+            if (row[0] != null && row[1] != null) {
+                String metodo = row[0].toString().toLowerCase();
+                Double monto = (Double) row[1]; // Ahora es Double (Dinero), no Long (Cantidad)
+                
+                if (metodo.contains("efectivo") || metodo.contains("contado")) {
+                    montoEfectivo += monto;
+                } else if (metodo.contains("tarjeta") || metodo.contains("débito") || metodo.contains("crédito")) {
+                    montoTarjeta += monto;
+                } else {
+                    montoQr += monto; // Yape, Plin, etc.
+                }
+            }
+        }
+
+        // 4. GRÁFICO BARRAS (Ventas diarias filtradas por fecha)
+        List<Object[]> ventasRango = ventaRepo.encontrarVentasVendedorRango(vendedor.getId(), inicioFiltro, finFiltro);
+        
+        Map<String, Double> mapaVentasDia = new LinkedHashMap<>();
+        LocalDate tempDate = fInicio;
+        while (!tempDate.isAfter(fFin)) {
+            mapaVentasDia.put(tempDate.format(DateTimeFormatter.ofPattern("dd/MM")), 0.0);
+            tempDate = tempDate.plusDays(1);
+        }
+        
+        for (Object[] row : ventasRango) {
+            LocalDateTime fecha = (LocalDateTime) row[0];
+            Double monto = (Double) row[1];
+            String key = fecha.format(DateTimeFormatter.ofPattern("dd/MM"));
+            if (mapaVentasDia.containsKey(key)) {
+                mapaVentasDia.put(key, mapaVentasDia.get(key) + monto);
+            }
+        }
+
+        // --- ENVIAR AL MODELO ---
+        // KPIs Hoy
         model.addAttribute("misVentas", misVentasHoy != null ? misVentasHoy : 0.0);
         model.addAttribute("misTickets", misTicketsHoy != null ? misTicketsHoy : 0);
-        model.addAttribute("historialVentas", historialVentas);
-        model.addAttribute("stockBajoTienda", stockBajoTienda);
         model.addAttribute("alertaStock", stockBajoTienda.size());
+        
+        // Pagos Dinero (Filtrado)
+        model.addAttribute("montoEfectivo", montoEfectivo);
+        model.addAttribute("montoTarjeta", montoTarjeta);
+        model.addAttribute("montoQr", montoQr);
+        
+        // Gráfico (Filtrado)
+        model.addAttribute("chartLabels", mapaVentasDia.keySet());
+        model.addAttribute("chartData", mapaVentasDia.values());
+
+        // Fechas Inputs
         model.addAttribute("fechaInicio", fInicio.toString());
         model.addAttribute("fechaFin", fFin.toString());
-        model.addAttribute("fechaHoy", LocalDate.now().toString());
 
         return "homevendedores";
     }
 
-    // Exportar Ventas Vendedor
-    @GetMapping("/homevendedores/exportar-ventas")
-    public void exportarVentasVendedor(
-            Authentication auth,
-            HttpServletResponse response,
-            @RequestParam("fechaInicio") String inicioStr,
-            @RequestParam("fechaFin") String finStr) throws IOException {
-        
-        String username = auth.getName();
-        Usuario vendedor = usuarioRepo.findByUsername(username).orElse(null);
-        if(vendedor == null) return;
-
-        LocalDateTime inicio = LocalDate.parse(inicioStr).atStartOfDay();
-        LocalDateTime fin = LocalDate.parse(finStr).atTime(LocalTime.MAX);
-
-        prepararExcel(response, "mis_ventas_" + inicioStr + "_al_" + finStr);
-        List<Venta> lista = ventaRepo.findByUsuarioIdAndFechaBetweenOrderByFechaDesc(vendedor.getId(), inicio, fin);
-        VentasExcelExporter excelExporter = new VentasExcelExporter(lista);
-        excelExporter.export(response);
-    }
-
-    // Exportar Stock Vendedor
-    @GetMapping("/homevendedores/exportar-stock")
-    public void exportarStockVendedor(Authentication auth, HttpServletResponse response) throws IOException {
-        String username = auth.getName();
-        Usuario vendedor = usuarioRepo.findByUsername(username).orElse(null);
-        
-        if (vendedor != null && vendedor.getTienda() != null) {
-            prepararExcel(response, "stock_critico_tienda");
-            List<Producto> lista = productoRepo.findByTiendaIdAndStockLessThanAndActivoTrue(vendedor.getTienda().getId(), 10);
-            StockExcelExporter excelExporter = new StockExcelExporter(lista);
-            excelExporter.export(response);
-        }
-    }
-
     // ==========================================
-    // 3. APIS REST (PARA GRÁFICOS AJAX)
+    // 3. APIS REST (PARA ADMIN)
     // ==========================================
-
     @GetMapping("/api/grafico/top-productos")
     @ResponseBody
     public Map<String, Object> getTopProductos(@RequestParam("inicio") String inicioStr, @RequestParam("fin") String finStr) {
@@ -186,60 +178,27 @@ public class DashboardController {
     public Map<String, Object> getPagos(@RequestParam("inicio") String inicioStr, @RequestParam("fin") String finStr) {
         LocalDateTime inicio = LocalDate.parse(inicioStr).atStartOfDay();
         LocalDateTime fin = LocalDate.parse(finStr).atTime(LocalTime.MAX);
-        // Admin ve SUMA DE DINERO
         List<Object[]> datos = ventaRepo.sumarVentasPorMetodoPago(inicio, fin);
         return procesarDatos(datos);
     }
 
-    @GetMapping("/api/vendedor/grafico/pagos")
-    @ResponseBody
-    public Map<String, Object> getVendedorPagos(Authentication auth, @RequestParam("inicio") String inicioStr, @RequestParam("fin") String finStr) {
-        String username = auth.getName();
-        Usuario vendedor = usuarioRepo.findByUsername(username).orElse(null);
-        if(vendedor == null) return new HashMap<>();
-
-        LocalDateTime inicio = LocalDate.parse(inicioStr).atStartOfDay();
-        LocalDateTime fin = LocalDate.parse(finStr).atTime(LocalTime.MAX);
-        // Vendedor ve CANTIDAD DE TICKETS (Según tu pedido)
-        List<Object[]> datos = ventaRepo.contarMetodosPagoVendedor(vendedor.getId(), inicio, fin);
-        return procesarDatos(datos);
-    }
-
-    // ==========================================
-    // 4. MÉTODOS AUXILIARES (HELPERS)
-    // ==========================================
-
-    // Helper: Procesa List<Object[]> a JSON para Chart.js
+    // Helper
     private Map<String, Object> procesarDatos(List<Object[]> datos) {
         List<String> labels = new ArrayList<>();
         List<Number> values = new ArrayList<>();
-        
         if (datos != null && !datos.isEmpty()) {
             for (Object[] fila : datos) {
                 if (fila[0] != null) {
                     labels.add(fila[0].toString());
-                    // Asegurar que el valor numérico se maneje bien (Double o Long)
                     values.add(fila[1] != null ? (Number) fila[1] : 0);
                 }
             }
         } else {
-            labels.add("Sin datos");
-            values.add(0);
+            labels.add("Sin datos"); values.add(0);
         }
-        
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("labels", labels);
         respuesta.put("data", values);
         return respuesta;
-    }
-
-    // Helper: Configura cabecera para descarga Excel
-    private void prepararExcel(HttpServletResponse response, String nombreArchivo) {
-        response.setContentType("application/octet-stream");
-        DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss");
-        String currentDateTime = dateFormatter.format(new Date());
-        String headerKey = "Content-Disposition";
-        String headerValue = "attachment; filename=" + nombreArchivo + "_" + currentDateTime + ".xlsx";
-        response.setHeader(headerKey, headerValue);
     }
 }
