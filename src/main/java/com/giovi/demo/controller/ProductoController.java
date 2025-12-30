@@ -1,9 +1,12 @@
 package com.giovi.demo.controller;
 
 import com.giovi.demo.entity.Producto;
+import com.giovi.demo.entity.Usuario;
 import com.giovi.demo.repository.CategoriaRepository;
 import com.giovi.demo.repository.ProductoRepository;
 import com.giovi.demo.repository.TiendaRepository;
+import com.giovi.demo.repository.UsuarioRepository;
+import com.giovi.demo.util.StockExcelExporter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -11,6 +14,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.http.ResponseEntity; 
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.security.Principal;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.ArrayList;
 import java.text.Normalizer;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -24,6 +34,7 @@ public class ProductoController {
     @Autowired private ProductoRepository productoRepository;
     @Autowired private TiendaRepository tiendaRepository;
     @Autowired private CategoriaRepository categoriaRepository;
+    @Autowired private UsuarioRepository usuarioRepository;
 
     @GetMapping
     public String index(Model model) {
@@ -129,7 +140,6 @@ public class ProductoController {
     
     // --- API PARA EL MODAL DE STOCK ---
 
-    // 1. Buscar producto por código y tienda
     @GetMapping("/api/buscar")
     @ResponseBody
     public ResponseEntity<?> buscarPorCodigoYTienda(@RequestParam String codigo, @RequestParam Long tiendaId) {
@@ -138,7 +148,6 @@ public class ProductoController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 2. Guardar el nuevo stock (Suma la cantidad)
     @PostMapping("/api/stock/actualizar")
     @ResponseBody
     public ResponseEntity<?> actualizarStock(@RequestParam Long id, @RequestParam Integer cantidad) {
@@ -146,7 +155,6 @@ public class ProductoController {
             Producto p = productoRepository.findById(id).orElse(null);
             if (p == null) return ResponseEntity.notFound().build();
 
-            // Sumamos al stock actual
             p.setStock(p.getStock() + cantidad);
             productoRepository.save(p);
             
@@ -157,5 +165,78 @@ public class ProductoController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    // ==========================================
+    // NUEVOS MÉTODOS PARA STOCK CRÍTICO (CORREGIDO)
+    // ==========================================
+
+    @GetMapping("/bajo-stock")
+    public String bajoStock(Model model, Principal principal) {
+        // 1. Verificación de seguridad de sesión
+        if (principal == null) {
+            return "redirect:/login";
+        }
+
+        // CORRECCIÓN: Usamos 'username' porque tu entidad NO TIENE 'email'
+        String username = principal.getName();
+        
+        // CORRECCIÓN: Buscamos por username
+        Usuario usuario = usuarioRepository.findByUsername(username).orElse(null);
+
+        // 2. Verificación de usuario existente
+        if (usuario == null) {
+            return "redirect:/logout";
+        }
+
+        List<Producto> productosBajoStock;
+
+        // 3. Lógica de selección de datos
+        if (usuario.getTienda() != null) {
+            // Caso VENDEDOR: Filtramos por SU tienda y stock < 10
+            productosBajoStock = productoRepository.findByTiendaIdAndStockLessThanAndActivoTrue(
+                usuario.getTienda().getId(), 
+                10
+            );
+        } else {
+            // Caso ADMIN o Sin tienda: Muestra todo lo bajo en stock
+            productosBajoStock = productoRepository.findByStockLessThanAndActivoTrue(10);
+        }
+
+        model.addAttribute("listaProductos", productosBajoStock);
+        return "productos/bajo_stock";
+    }
+
+    @GetMapping("/bajo-stock/exportar")
+    public void exportarExcelBajoStock(HttpServletResponse response, Principal principal) throws IOException {
+        if (principal == null) {
+            response.sendRedirect("/login");
+            return;
+        }
+
+        response.setContentType("application/octet-stream");
+        DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss");
+        String currentDateTime = dateFormatter.format(new Date());
+
+        String headerKey = "Content-Disposition";
+        String headerValue = "attachment; filename=Stock_Critico_" + currentDateTime + ".xlsx";
+        response.setHeader(headerKey, headerValue);
+
+        // CORRECCIÓN: Usamos 'username' aquí también
+        String username = principal.getName();
+        Usuario usuario = usuarioRepository.findByUsername(username).orElse(null);
+
+        List<Producto> listProductos = new ArrayList<>();
+
+        if (usuario != null) {
+            if (usuario.getTienda() != null) {
+                listProductos = productoRepository.findByTiendaIdAndStockLessThanAndActivoTrue(usuario.getTienda().getId(), 10);
+            } else {
+                listProductos = productoRepository.findByStockLessThanAndActivoTrue(10);
+            }
+        }
+
+        StockExcelExporter excelExporter = new StockExcelExporter(listProductos);
+        excelExporter.export(response);
     }
 }
