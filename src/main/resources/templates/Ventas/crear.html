@@ -7,6 +7,7 @@
     <link rel="stylesheet" th:href="@{/css/bootstrap.min.css}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     
     <meta name="_csrf" th:content="${_csrf.token}"/>
     <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
@@ -16,8 +17,12 @@
         .btn-limpiar { border-color: #dee2e6; color: #dc3545; }
         .btn-limpiar:hover { background-color: #dc3545; color: white; }
     </style>
+    
 </head>
 <body>
+    <div th:if="${userLog.rol == 'VENDEDOR'}">
+        <div th:replace="~{layout/fragments :: navbarVendedor}"></div>
+    </div>
 <div layout:fragment="content" class="container-fluid mt-3">
 
     <div class="d-flex justify-content-between align-items-center mb-3">

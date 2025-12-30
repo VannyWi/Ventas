@@ -12,7 +12,9 @@
 </head>
 <body class="bg-light">
 
-    <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
+     <div th:if="${userLog.rol == 'ADMIN'}">
+        <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
+    </div>
 
     <div class="container-fluid px-4 py-4">
         
@@ -158,6 +160,13 @@
     <script th:inline="javascript">
         /*<![CDATA[*/
         
+        // CORRECCIÓN: Detectar "BFCache" (botón atrás) para cerrar alerta
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || (typeof Swal !== 'undefined' && Swal.isVisible())) {
+                Swal.close();
+            }
+        });
+
         function cargarUsuarios() {
             const tiendaId = document.getElementById('tiendaSelect').value;
             const usuarioSelect = document.getElementById('usuarioSelect');

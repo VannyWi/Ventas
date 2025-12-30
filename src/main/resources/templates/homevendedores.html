@@ -13,7 +13,9 @@
 </head>
 <body class="bg-light">
 
-    <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
+     <div th:if="${userLog.rol == 'VENDEDOR'}">
+        <div th:replace="~{layout/fragments :: navbarVendedor}"></div>
+    </div>
 
     <div class="container-fluid px-4 py-4">
         
@@ -138,6 +140,13 @@
     <script th:inline="javascript">
         /*<![CDATA[*/
         
+        // CORRECCIÓN: Detectar "BFCache" (botón atrás) para cerrar alerta
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || (typeof Swal !== 'undefined' && Swal.isVisible())) {
+                Swal.close();
+            }
+        });
+
         document.addEventListener("DOMContentLoaded", function() {
             // 1. Limpieza de URL (Truco Visual)
             if (window.history.replaceState) {
