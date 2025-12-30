@@ -14,10 +14,14 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
 import java.security.Principal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/ventas")
@@ -235,5 +239,96 @@ public class VentaController {
             }
             return "redirect:/ventas/crear";
         }
+    }
+    @GetMapping("/mis-ventas")
+    public String misVentas(Model model, Principal principal,
+                            @RequestParam(required = false) LocalDate fechaInicio,
+                            @RequestParam(required = false) LocalDate fechaFin) {
+        
+        // 1. Validar Sesión
+        if (principal == null) return "redirect:/login";
+        String username = principal.getName();
+        Usuario usuario = usuarioRepository.findByUsername(username).orElse(null);
+        if (usuario == null) return "redirect:/logout";
+
+        // 2. Filtro de Fechas (Default: HOY)
+        if (fechaInicio == null) fechaInicio = LocalDate.now();
+        if (fechaFin == null) fechaFin = LocalDate.now();
+
+        LocalDateTime inicio = fechaInicio.atStartOfDay();
+        LocalDateTime fin = fechaFin.atTime(LocalTime.MAX);
+
+        // 3. Obtener Ventas (Estrategia Híbrida: Filtramos en BD)
+        List<Venta> misVentas = ventaRepository.findByUsuarioIdAndFechaBetweenOrderByFechaDesc(
+            usuario.getId(), inicio, fin
+        );
+
+        // 4. Calcular Ingresos (KPIs) usando tu lógica segura
+        Double mEfectivo = 0.0;
+        Double mTarjeta = 0.0;
+        Double mQr = 0.0;
+
+        for (Venta v : misVentas) {
+            if (v.getMetodoPago() != null) {
+                String m = v.getMetodoPago().toLowerCase();
+                // Seguridad: Si total es null, asumimos 0.0
+                Double valor = (v.getMontoTotal() != null) ? v.getMontoTotal() : 0.0;
+
+                // Lógica solicitada
+                if (m.contains("efectivo") || m.contains("contado")) {
+                    mEfectivo += valor;
+                } else if (m.contains("tarjeta") || m.contains("débito") || m.contains("crédito")) {
+                    mTarjeta += valor;
+                } else {
+                    // Asumimos que el resto es Yape/Plin/QR
+                    mQr += valor;
+                }
+            }
+        }
+
+        // 5. Enviar datos a la vista
+        model.addAttribute("listaVentas", misVentas);
+        model.addAttribute("fechaInicio", fechaInicio);
+        model.addAttribute("fechaFin", fechaFin);
+        
+        // Totales para las Cards
+        model.addAttribute("montoEfectivo", mEfectivo);
+        model.addAttribute("montoTarjeta", mTarjeta);
+        model.addAttribute("montoQr", mQr);
+
+        return "Ventas/mis_ventas";
+    }
+
+    // ==========================================
+    // API PARA DETALLES (MODAL POPUP)
+    // ==========================================
+    
+    @GetMapping("/api/detalle/{id}")
+    @ResponseBody
+    public ResponseEntity<?> obtenerDetalleVenta(@PathVariable Long id) {
+        return ventaRepository.findById(id).map(venta -> {
+            List<Map<String, Object>> detalles = venta.getDetalleVenta().stream().map(d -> {
+                Map<String, Object> map = new HashMap<>();
+                
+                String prodNombre = (d.getProducto() != null) ? d.getProducto().getNombre() : "Producto Eliminado";
+                String prodCodigo = (d.getProducto() != null) ? d.getProducto().getCodigoBarras() : "---";
+
+                map.put("producto", prodNombre);
+                map.put("codigo", prodCodigo);
+                map.put("cantidad", d.getCantidad());
+                map.put("precioUnitario", d.getPrecioUnitario());
+                
+                // Cálculo seguro del subtotal
+                Double subtotal = 0.0;
+                if(d.getCantidad() != null && d.getPrecioUnitario() != null){
+                    subtotal = d.getCantidad() * d.getPrecioUnitario();
+                }
+                map.put("subtotal", subtotal);
+                
+                return map;
+            }).collect(Collectors.toList());
+            
+            return ResponseEntity.ok(detalles);
+        }).orElse(ResponseEntity.notFound().build());
     }
 }

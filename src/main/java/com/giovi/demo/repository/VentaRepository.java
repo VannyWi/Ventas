@@ -78,4 +78,6 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
 
     // Historial de ventas (Lista)
     List<Venta> findByUsuarioIdAndFechaBetweenOrderByFechaDesc(Long usuarioId, LocalDateTime inicio, LocalDateTime fin);
+    
+    
 }
