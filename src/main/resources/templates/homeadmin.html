@@ -6,44 +6,112 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .filter-group { font-size: 0.85rem; }
-        .filter-group input { padding: 0.25rem 0.5rem; font-size: 0.85rem; }
+        .bg-light-yellow { background-color: #fff3cd; }
+        .text-yellow-dark { color: #856404; }
     </style>
 </head>
 <body class="bg-light">
 
-     <div th:if="${userLog.rol == 'ADMIN'}">
-        <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
-    </div>
+    <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
 
     <div class="container-fluid px-4 py-4">
         
-        <div class="row g-4 mb-4 justify-content-center">
-            <div class="col-md-4 col-xl-3">
-                <div class="card bg-white text-start shadow-sm h-100 border-start border-4 border-success">
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card bg-white shadow-sm h-100 border-start border-4 border-success">
                     <div class="card-body">
-                        <p class="text-uppercase text-muted small fw-bold mb-1">Ventas del Día</p>
+                        <p class="text-uppercase text-muted small fw-bold mb-1">Ventas del Día (Global)</p>
                         <h3 class="text-success fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(totalVentas, 1, 'COMMA', 2, 'POINT')}"></h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4 col-xl-3">
-                <div class="card bg-white text-start shadow-sm h-100 border-start border-4 border-primary">
+            <div class="col-md-4">
+                <div class="card bg-white shadow-sm h-100 border-start border-4 border-primary">
                     <div class="card-body">
                         <p class="text-uppercase text-muted small fw-bold mb-1">Tickets Emitidos</p>
                         <h3 class="text-primary fw-bold" th:text="${cantidadTickets}"></h3>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4 col-xl-3">
-                <div class="card bg-white text-start shadow-sm h-100 border-start border-4 border-danger">
+            <div class="col-md-4">
+                <div class="card bg-white shadow-sm h-100 border-start border-4 border-danger">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <p class="text-uppercase text-muted small fw-bold mb-1">Stock Crítico</p>
-                                <h3 class="text-danger fw-bold" th:text="${totalStockBajo}"></h3>
+                                <p class="text-uppercase text-muted small fw-bold mb-1">Stock Crítico (Global)</p>
+                                <h3 class="text-danger fw-bold" th:text="${alertasStock}"></h3>
                             </div>
-                            <i class="bi bi-exclamation-triangle text-danger fs-1 opacity-25"></i>
+                            <i class="bi bi-box-seam fs-1 text-danger opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-body py-3 bg-white rounded">
+                <form th:action="@{/homeadmin}" method="get" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Desde</label>
+                        <input type="date" name="fechaInicio" class="form-control form-control-sm" th:value="${fechaInicio}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Hasta</label>
+                        <input type="date" name="fechaFin" class="form-control form-control-sm" th:value="${fechaFin}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted">Tienda</label>
+                        <select name="tiendaId" class="form-select form-select-sm">
+                            <option value="">Todas</option>
+                            <option th:each="t : ${listaTiendas}" th:value="${t.id}" th:text="${t.nombre}" th:selected="${selTiendaId == t.id}"></option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted">Vendedor</label>
+                        <select name="usuarioId" class="form-select form-select-sm">
+                            <option value="">Todos</option>
+                            <option th:each="u : ${listaUsuarios}" th:value="${u.id}" th:text="${u.nombre}" th:selected="${selUsuarioId == u.id}"></option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-search me-1"></i>Filtrar</button>
+                        <a th:href="@{/homeadmin}" class="btn btn-sm btn-outline-secondary w-50" title="Limpiar Filtros"><i class="bi bi-arrow-counterclockwise"></i></a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <h6 class="fw-bold text-muted mb-3">Ingresos Filtrados (S/.)</h6>
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 bg-success bg-opacity-10 p-3 rounded"><i class="bi bi-cash-stack text-success fs-3"></i></div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted">Efectivo</h6>
+                            <h3 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoEfectivo, 1, 'COMMA', 2, 'POINT')}"></h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 bg-primary bg-opacity-10 p-3 rounded"><i class="bi bi-credit-card-2-front text-primary fs-3"></i></div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted">Tarjeta</h6>
+                            <h3 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoTarjeta, 1, 'COMMA', 2, 'POINT')}"></h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 bg-light-yellow p-3 rounded"><i class="bi bi-qr-code-scan text-yellow-dark fs-3"></i></div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted">Yape/Plin</h6>
+                            <h3 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoQr, 1, 'COMMA', 2, 'POINT')}"></h3>
                         </div>
                     </div>
                 </div>
@@ -51,213 +119,92 @@
         </div>
 
         <div class="row g-4 mb-4">
-            
-            <div class="col-lg-7">
+            <div class="col-lg-6">
                 <div class="card shadow-sm h-100">
-                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-trophy me-2 text-warning"></i>Top Productos</h6>
-                        
-                        <div class="d-flex align-items-center gap-2 filter-group bg-light p-1 rounded">
-                            <input type="date" id="startTop" th:value="${fechaHoy}" class="form-control border-0 bg-transparent">
-                            <span class="text-muted">-</span>
-                            <input type="date" id="endTop" th:value="${fechaHoy}" class="form-control border-0 bg-transparent">
-                            <button onclick="actualizarGrafico('top')" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div style="height: 300px;"><canvas id="chartTopProductos"></canvas></div>
-                    </div>
+                    <div class="card-header bg-white py-3"><h6 class="m-0 fw-bold text-dark">Top 10 Productos</h6></div>
+                    <div class="card-body"><canvas id="chartTop"></canvas></div>
                 </div>
             </div>
-
-            <div class="col-lg-5">
+            <div class="col-lg-6">
                 <div class="card shadow-sm h-100">
-                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-pie-chart me-2 text-info"></i>Categorías</h6>
-                        
-                        <div class="d-flex align-items-center gap-2 filter-group bg-light p-1 rounded">
-                            <input type="date" id="startCat" th:value="${fechaHoy}" class="form-control border-0 bg-transparent" style="width: 110px;">
-                            <span class="text-muted">-</span>
-                            <input type="date" id="endCat" th:value="${fechaHoy}" class="form-control border-0 bg-transparent" style="width: 110px;">
-                            <button onclick="actualizarGrafico('cat')" class="btn btn-sm btn-info text-white"><i class="bi bi-search"></i></button>
-                        </div>
-                    </div>
-                    <div class="card-body d-flex justify-content-center align-items-center">
-                        <div style="height: 250px; width: 100%;"><canvas id="chartCategorias"></canvas></div>
-                    </div>
+                    <div class="card-header bg-white py-3"><h6 class="m-0 fw-bold text-dark">Ventas por Categoría</h6></div>
+                    <div class="card-body"><div style="height: 300px; display:flex; justify-content:center;"><canvas id="chartCat"></canvas></div></div>
                 </div>
             </div>
         </div>
 
-        <div class="row g-4">
-            
-            <div class="col-lg-5">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <h6 class="m-0 fw-bold text-dark"><i class="bi bi-credit-card me-2 text-success"></i>Ingresos por Pago</h6>
-                        
-                        <div class="d-flex align-items-center gap-2 filter-group bg-light p-1 rounded">
-                            <input type="date" id="startPago" th:value="${fechaHoy}" class="form-control border-0 bg-transparent" style="width: 110px;">
-                            <span class="text-muted">-</span>
-                            <input type="date" id="endPago" th:value="${fechaHoy}" class="form-control border-0 bg-transparent" style="width: 110px;">
-                            <button onclick="actualizarGrafico('pago')" class="btn btn-sm btn-success"><i class="bi bi-search"></i></button>
-                        </div>
-                    </div>
-                    <div class="card-body d-flex justify-content-center align-items-center">
-                        <div style="height: 250px; width: 100%;"><canvas id="chartPagos"></canvas></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-7">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
-                        <h6 class="m-0 fw-bold text-danger"><i class="bi bi-box-seam me-2"></i>Stock Crítico</h6>
-                        <a th:href="@{/homeadmin/exportar-stock}" class="btn btn-sm btn-outline-success">
-                            <i class="bi bi-file-earmark-excel me-1"></i>Exportar Excel
-                        </a>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="ps-4">Producto</th>
-                                        <th>Categoría</th>
-                                        <th class="text-center">Stock</th>
-                                        <th>Tienda</th> </tr>
-                                </thead>
-                                <tbody>
-                                    <tr th:each="prod : ${listaStockBajo}">
-                                        <td class="ps-4 fw-medium" th:text="${prod.nombre}"></td>
-                                        <td class="text-muted small" th:text="${prod.categoria.nombre}"></td>
-                                        <td class="text-center">
-                                            <span class="badge bg-danger bg-opacity-10 text-danger" th:text="${prod.stock} + ' un.'"></span>
-                                        </td>
-                                        <td class="small" th:text="${prod.tienda != null ? prod.tienda.nombre : '-'}"></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="card-footer bg-white border-0 text-center py-3" th:if="${mostrarVerMas}">
-                        <a th:href="@{/productos(stockBajo=true)}" class="btn btn-sm btn-light text-muted w-100">
-                            Ver todos los productos con stock bajo <i class="bi bi-arrow-right ms-1"></i>
-                        </a>
-                    </div>
-                </div>
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white py-3"><h6 class="m-0 fw-bold text-dark">Ganancias por Vendedor / Tienda</h6></div>
+            <div class="card-body">
+                <div style="height: 350px;"><canvas id="chartVendedores"></canvas></div>
             </div>
         </div>
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script th:inline="javascript">
-        // Variables globales para las instancias de los gráficos
-        let chartTop, chartCat, chartPago;
-
-        // Inicializar al cargar
-        document.addEventListener("DOMContentLoaded", function() {
-            // Cargar datos iniciales (De hoy, como está en el value de los inputs)
-            actualizarGrafico('top');
-            actualizarGrafico('cat');
-            actualizarGrafico('pago');
+        /*<![CDATA[*/
+        // 1. TOP PRODUCTOS
+        new Chart(document.getElementById('chartTop'), {
+            type: 'bar',
+            data: {
+                labels: /*[[${topProdLabels}]]*/ [],
+                datasets: [{
+                    label: 'Unidades Vendidas',
+                    data: /*[[${topProdData}]]*/ [],
+                    backgroundColor: '#4e73df',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
         });
 
-        // Función Maestra para actualizar gráficos
-        function actualizarGrafico(tipo) {
-            let start, end, url, chartId, chartType, chartInstance, bgColors, label;
-
-            // Configurar variables según el tipo de gráfico
-            if (tipo === 'top') {
-                start = document.getElementById('startTop').value;
-                end = document.getElementById('endTop').value;
-                url = '/api/grafico/top-productos';
-                chartId = 'chartTopProductos';
-                chartType = 'bar';
-                chartInstance = chartTop;
-                label = 'Unidades';
-                bgColors = '#4e73df';
-            } else if (tipo === 'cat') {
-                start = document.getElementById('startCat').value;
-                end = document.getElementById('endCat').value;
-                url = '/api/grafico/categorias';
-                chartId = 'chartCategorias';
-                chartType = 'doughnut';
-                chartInstance = chartCat;
-                bgColors = ['#36b9cc', '#1cc88a', '#f6c23e', '#e74a3b', '#858796'];
-            } else if (tipo === 'pago') {
-                start = document.getElementById('startPago').value;
-                end = document.getElementById('endPago').value;
-                url = '/api/grafico/pagos';
-                chartId = 'chartPagos';
-                chartType = 'pie';
-                chartInstance = chartPago;
-                bgColors = ['#4e73df', '#1cc88a', '#36b9cc'];
+        // 2. CATEGORÍAS
+        new Chart(document.getElementById('chartCat'), {
+            type: 'doughnut',
+            data: {
+                labels: /*[[${catLabels}]]*/ [],
+                datasets: [{
+                    data: /*[[${catData}]]*/ [],
+                    backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'right' } }
             }
+        });
 
-            // Llamada AJAX (Fetch)
-            fetch(`${url}?inicio=${start}&fin=${end}`)
-                .then(response => response.json())
-                .then(data => {
-                    renderChart(chartId, chartType, data.labels, data.data, bgColors, label, tipo);
-                });
-        }
-
-        // Función para renderizar/actualizar el Chart.js
-        function renderChart(canvasId, type, labels, data, colors, datasetLabel, tipo) {
-            const ctx = document.getElementById(canvasId).getContext('2d');
-            
-            // Destruir gráfico anterior si existe para redibujar
-            if (tipo === 'top' && chartTop) chartTop.destroy();
-            if (tipo === 'cat' && chartCat) chartCat.destroy();
-            if (tipo === 'pago' && chartPago) chartPago.destroy();
-
-            let config = {
-                type: type,
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: datasetLabel || 'Valor',
-                        data: data,
-                        backgroundColor: colors,
-                        borderRadius: type === 'bar' ? 4 : 0,
-                        borderWidth: type === 'bar' ? 0 : 2
-                    }]
+        // 3. VENDEDORES (BARRAS)
+        new Chart(document.getElementById('chartVendedores'), {
+            type: 'bar',
+            data: {
+                labels: /*[[${vendLabels}]]*/ [],
+                datasets: [{
+                    label: 'Ganancia Generada (S/.)',
+                    data: /*[[${vendData}]]*/ [],
+                    backgroundColor: '#1cc88a',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: function(c) { return ' S/. ' + c.raw.toFixed(2); } } }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: type === 'bar' ? 'y' : 'x',
-                    plugins: {
-                        legend: { display: type !== 'bar', position: 'bottom' },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let val = context.raw;
-                                    // Formato de moneda para pagos y categorías
-                                    if (tipo === 'pago' || tipo === 'cat') {
-                                        return ' S/. ' + val.toFixed(2);
-                                    }
-                                    return ' ' + val;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: { display: type === 'bar' }, // Ocultar grid si no es barra
-                        y: { display: type === 'bar' }
-                    }
-                }
-            };
-
-            let newChart = new Chart(ctx, config);
-
-            // Guardar referencia
-            if (tipo === 'top') chartTop = newChart;
-            if (tipo === 'cat') chartCat = newChart;
-            if (tipo === 'pago') chartPago = newChart;
-        }
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+        /*]]>*/
     </script>
 </body>
 </html>

@@ -27,40 +27,118 @@ public class DashboardController {
     @Autowired private DetalleVentaRepository detalleRepo;
     @Autowired private ProductoRepository productoRepo;
     @Autowired private UsuarioRepository usuarioRepo;
+    @Autowired private TiendaRepository tiendaRepo;
 
     // ==========================================
-    // 1. SECCIÓN ADMINISTRADOR (Sin cambios)
+    // 1. SECCIÓN ADMINISTRADOR (CON FILTROS)
     // ==========================================
     @GetMapping("/homeadmin")
-    public String homeAdmin(Model model) {
+    public String homeAdmin(Model model,
+                            @RequestParam(required = false) String fechaInicio,
+                            @RequestParam(required = false) String fechaFin,
+                            @RequestParam(required = false) Long tiendaId,
+                            @RequestParam(required = false) Long usuarioId) {
+        
+        // --- 1. KPIs GLOBALES (Siempre muestran HOY general) ---
         LocalDateTime inicioHoy = LocalDate.now().atStartOfDay();
         LocalDateTime finHoy = LocalDate.now().atTime(LocalTime.MAX);
 
         Double totalVentas = ventaRepo.sumarVentasPorFecha(inicioHoy, finHoy);
         Long cantidadTickets = ventaRepo.contarVentasPorFecha(inicioHoy, finHoy);
         List<Producto> todoStockBajo = productoRepo.findByStockLessThanAndActivoTrue(10);
-        List<Producto> stockBajoVista = todoStockBajo.stream().limit(20).collect(Collectors.toList());
         
         model.addAttribute("totalVentas", totalVentas != null ? totalVentas : 0.0);
         model.addAttribute("cantidadTickets", cantidadTickets != null ? cantidadTickets : 0);
-        model.addAttribute("listaStockBajo", stockBajoVista);
-        model.addAttribute("totalStockBajo", todoStockBajo.size());
-        model.addAttribute("mostrarVerMas", todoStockBajo.size() > 20);
         model.addAttribute("alertasStock", todoStockBajo.size());
-        model.addAttribute("fechaHoy", LocalDate.now().toString());
+
+        // --- 2. PREPARAR FILTROS (Para Gráficos y Tarjetas de Pago) ---
+        // Por defecto: HOY
+        LocalDate fInicio = (fechaInicio != null && !fechaInicio.isEmpty()) ? LocalDate.parse(fechaInicio) : LocalDate.now();
+        LocalDate fFin = (fechaFin != null && !fechaFin.isEmpty()) ? LocalDate.parse(fechaFin) : LocalDate.now();
+        
+        LocalDateTime inicioFiltro = fInicio.atStartOfDay();
+        LocalDateTime finFiltro = fFin.atTime(LocalTime.MAX);
+
+        // --- 3. TARJETAS PAGOS (Filtradas) ---
+        List<Object[]> pagosData = ventaRepo.sumarVentasPorMetodoPagoFiltrado(inicioFiltro, finFiltro, tiendaId, usuarioId);
+        
+        Double montoEfectivo = 0.0;
+        Double montoTarjeta = 0.0;
+        Double montoQr = 0.0;
+
+        for (Object[] row : pagosData) {
+            if(row[0] != null && row[1] != null) {
+                String metodo = row[0].toString().toLowerCase();
+                Double monto = (Double) row[1];
+                if (metodo.contains("efectivo") || metodo.contains("contado")) montoEfectivo += monto;
+                else if (metodo.contains("tarjeta") || metodo.contains("débito")) montoTarjeta += monto;
+                else montoQr += monto;
+            }
+        }
+        
+        model.addAttribute("montoEfectivo", montoEfectivo);
+        model.addAttribute("montoTarjeta", montoTarjeta);
+        model.addAttribute("montoQr", montoQr);
+
+        // --- 4. GRÁFICOS (Filtrados) ---
+        
+        // Top 10 Productos
+        List<Object[]> topProductos = detalleRepo.encontrarTopProductosFiltrado(inicioFiltro, finFiltro, tiendaId, usuarioId, PageRequest.of(0, 10));
+        cargarDatosGrafico(model, topProductos, "topProdLabels", "topProdData");
+
+        // Categorías
+        List<Object[]> categorias = detalleRepo.encontrarCategoriasFiltrado(inicioFiltro, finFiltro, tiendaId, usuarioId);
+        cargarDatosGrafico(model, categorias, "catLabels", "catData");
+
+        // Ganancias por Vendedor
+        List<Object[]> vendedoresData = ventaRepo.encontrarVentasPorVendedorYTienda(inicioFiltro, finFiltro, tiendaId, usuarioId);
+        List<String> vendLabels = new ArrayList<>();
+        List<Double> vendData = new ArrayList<>();
+        if(vendedoresData != null) {
+            for(Object[] row : vendedoresData) {
+                vendLabels.add(row[0].toString() + " (" + row[1].toString() + ")"); 
+                vendData.add((Double) row[2]);
+            }
+        }
+        model.addAttribute("vendLabels", vendLabels);
+        model.addAttribute("vendData", vendData);
+
+        // --- 5. COMBOS Y ESTADO ---
+        model.addAttribute("listaTiendas", tiendaRepo.findAll());
+        model.addAttribute("listaUsuarios", usuarioRepo.findAll());
+        
+        // Devolver selección para mantener el filtro visualmente
+        model.addAttribute("fechaInicio", fInicio.toString());
+        model.addAttribute("fechaFin", fFin.toString());
+        model.addAttribute("selTiendaId", tiendaId);
+        model.addAttribute("selUsuarioId", usuarioId);
 
         return "homeadmin";
     }
 
+    // Método auxiliar para procesar datos de gráficos
+    private void cargarDatosGrafico(Model model, List<Object[]> datos, String labelAttr, String dataAttr) {
+        List<String> labels = new ArrayList<>();
+        List<Number> values = new ArrayList<>();
+        if (datos != null && !datos.isEmpty()) {
+            for (Object[] fila : datos) {
+                if(fila[0] != null) {
+                    labels.add(fila[0].toString());
+                    values.add(fila[1] != null ? (Number) fila[1] : 0);
+                }
+            }
+        }
+        model.addAttribute(labelAttr, labels);
+        model.addAttribute(dataAttr, values);
+    }
+
     // ==========================================
-    // 2. SECCIÓN VENDEDOR (ACTUALIZADO)
+    // 2. SECCIÓN VENDEDOR (TU CÓDIGO EXISTENTE)
     // ==========================================
     @GetMapping("/homevendedores")
     public String homeVendedores(Model model, Authentication auth,
-                                 // Filtro 1: Tarjetas de Pago (AHORA ES UN RANGO)
                                  @RequestParam(value = "fechaInicioPago", required = false) String fechaInicioPagoStr,
                                  @RequestParam(value = "fechaFinPago", required = false) String fechaFinPagoStr,
-                                 // Filtro 2: Gráfico (Rango)
                                  @RequestParam(value = "fechaInicioChart", required = false) String fechaInicioChartStr,
                                  @RequestParam(value = "fechaFinChart", required = false) String fechaFinChartStr) {
         
@@ -68,147 +146,51 @@ public class DashboardController {
         Optional<Usuario> usuarioOpt = usuarioRepo.findByUsername(username);
         if (usuarioOpt.isEmpty()) return "redirect:/login";
         Usuario vendedor = usuarioOpt.get();
-
         LocalDate hoy = LocalDate.now();
 
-        // A. Configuración Fechas PAGOS (Default: HOY - HOY)
         LocalDate fInicioPago = (fechaInicioPagoStr != null && !fechaInicioPagoStr.isEmpty()) ? LocalDate.parse(fechaInicioPagoStr) : hoy;
         LocalDate fFinPago = (fechaFinPagoStr != null && !fechaFinPagoStr.isEmpty()) ? LocalDate.parse(fechaFinPagoStr) : hoy;
-        
-        // B. Configuración Fechas GRÁFICO (Default: Últimos 7 días)
         LocalDate fFinChart = (fechaFinChartStr != null && !fechaFinChartStr.isEmpty()) ? LocalDate.parse(fechaFinChartStr) : hoy;
         LocalDate fInicioChart = (fechaInicioChartStr != null && !fechaInicioChartStr.isEmpty()) ? LocalDate.parse(fechaInicioChartStr) : hoy.minusDays(6);
 
-        // --- LÓGICA DE DATOS ---
+        // KPIs Hoy
+        Double misVentasHoy = ventaRepo.sumarVentasVendedorHoy(vendedor.getId(), hoy.atStartOfDay(), hoy.atTime(LocalTime.MAX));
+        Long misTicketsHoy = ventaRepo.contarVentasVendedorHoy(vendedor.getId(), hoy.atStartOfDay(), hoy.atTime(LocalTime.MAX));
+        List<Producto> stockBajoTienda = (vendedor.getTienda() != null) ? 
+            productoRepo.findByTiendaIdAndStockLessThanAndActivoTrue(vendedor.getTienda().getId(), 10) : new ArrayList<>();
 
-        // 1. KPIs SUPERIORES (Siempre fijos a "Hoy" real)
-        LocalDateTime startToday = hoy.atStartOfDay();
-        LocalDateTime endToday = hoy.atTime(LocalTime.MAX);
-        Double misVentasHoy = ventaRepo.sumarVentasVendedorHoy(vendedor.getId(), startToday, endToday);
-        Long misTicketsHoy = ventaRepo.contarVentasVendedorHoy(vendedor.getId(), startToday, endToday);
-
-        // Stock Bajo
-        List<Producto> stockBajoTienda = new ArrayList<>();
-        if (vendedor.getTienda() != null) {
-            stockBajoTienda = productoRepo.findByTiendaIdAndStockLessThanAndActivoTrue(vendedor.getTienda().getId(), 10);
-        }
-
-        // 2. TARJETAS MÉTODOS DE PAGO (Usa el rango fInicioPago - fFinPago)
-        LocalDateTime inicioPago = fInicioPago.atStartOfDay();
-        LocalDateTime finPago = fFinPago.atTime(LocalTime.MAX);
-        
-        List<Object[]> pagosData = ventaRepo.sumarMetodosPagoVendedor(vendedor.getId(), inicioPago, finPago);
-        
-        Double montoEfectivo = 0.0;
-        Double montoTarjeta = 0.0;
-        Double montoQr = 0.0;
-
+        // Pagos (Rango)
+        List<Object[]> pagosData = ventaRepo.sumarMetodosPagoVendedor(vendedor.getId(), fInicioPago.atStartOfDay(), fFinPago.atTime(LocalTime.MAX));
+        Double mEfectivo = 0.0, mTarjeta = 0.0, mQr = 0.0;
         for (Object[] row : pagosData) {
-            if (row[0] != null && row[1] != null) {
-                String metodo = row[0].toString().toLowerCase();
-                Double monto = (Double) row[1];
-                
-                if (metodo.contains("efectivo") || metodo.contains("contado")) {
-                    montoEfectivo += monto;
-                } else if (metodo.contains("tarjeta") || metodo.contains("débito") || metodo.contains("crédito")) {
-                    montoTarjeta += monto;
-                } else {
-                    montoQr += monto; // Yape/Plin/Otros
-                }
-            }
+            String m = row[0].toString().toLowerCase();
+            Double v = (Double) row[1];
+            if (m.contains("efectivo")) mEfectivo += v;
+            else if (m.contains("tarjeta")) mTarjeta += v;
+            else mQr += v;
         }
 
-        // 3. GRÁFICO BARRAS (Usa el rango fInicioChart - fFinChart)
-        LocalDateTime inicioChart = fInicioChart.atStartOfDay();
-        LocalDateTime finChart = fFinChart.atTime(LocalTime.MAX);
-        
-        List<Object[]> ventasRango = ventaRepo.encontrarVentasVendedorRango(vendedor.getId(), inicioChart, finChart);
-        
-        Map<String, Double> mapaVentasDia = new LinkedHashMap<>();
-        LocalDate tempDate = fInicioChart;
-        while (!tempDate.isAfter(fFinChart)) {
-            mapaVentasDia.put(tempDate.format(DateTimeFormatter.ofPattern("dd/MM")), 0.0);
-            tempDate = tempDate.plusDays(1);
-        }
-        
-        for (Object[] row : ventasRango) {
-            LocalDateTime fecha = (LocalDateTime) row[0];
-            Double monto = (Double) row[1];
-            String key = fecha.format(DateTimeFormatter.ofPattern("dd/MM"));
-            if (mapaVentasDia.containsKey(key)) {
-                mapaVentasDia.put(key, mapaVentasDia.get(key) + monto);
-            }
-        }
+        // Gráfico (Rango)
+        List<Object[]> ventasRango = ventaRepo.encontrarVentasVendedorRango(vendedor.getId(), fInicioChart.atStartOfDay(), fFinChart.atTime(LocalTime.MAX));
+        Map<String, Double> mapChart = new LinkedHashMap<>();
+        LocalDate tmp = fInicioChart;
+        while (!tmp.isAfter(fFinChart)) { mapChart.put(tmp.format(DateTimeFormatter.ofPattern("dd/MM")), 0.0); tmp = tmp.plusDays(1); }
+        for (Object[] r : ventasRango) mapChart.put(((LocalDateTime)r[0]).format(DateTimeFormatter.ofPattern("dd/MM")), mapChart.getOrDefault(((LocalDateTime)r[0]).format(DateTimeFormatter.ofPattern("dd/MM")), 0.0) + (Double)r[1]);
 
-        // --- ATRIBUTOS MODELO ---
         model.addAttribute("misVentas", misVentasHoy != null ? misVentasHoy : 0.0);
         model.addAttribute("misTickets", misTicketsHoy != null ? misTicketsHoy : 0);
         model.addAttribute("alertaStock", stockBajoTienda.size());
+        model.addAttribute("montoEfectivo", mEfectivo);
+        model.addAttribute("montoTarjeta", mTarjeta);
+        model.addAttribute("montoQr", mQr);
+        model.addAttribute("chartLabels", mapChart.keySet());
+        model.addAttribute("chartData", mapChart.values());
         
-        model.addAttribute("montoEfectivo", montoEfectivo);
-        model.addAttribute("montoTarjeta", montoTarjeta);
-        model.addAttribute("montoQr", montoQr);
-        
-        model.addAttribute("chartLabels", mapaVentasDia.keySet());
-        model.addAttribute("chartData", mapaVentasDia.values());
-
-        // Devolver fechas para mantener los inputs llenos
         model.addAttribute("fechaInicioPago", fInicioPago.toString());
         model.addAttribute("fechaFinPago", fFinPago.toString());
-        
         model.addAttribute("fechaInicioChart", fInicioChart.toString());
         model.addAttribute("fechaFinChart", fFinChart.toString());
 
         return "homevendedores";
-    }
-
-    // ==========================================
-    // 3. APIS REST (ADMIN - AJAX)
-    // ==========================================
-    @GetMapping("/api/grafico/top-productos")
-    @ResponseBody
-    public Map<String, Object> getTopProductos(@RequestParam("inicio") String inicioStr, @RequestParam("fin") String finStr) {
-        LocalDateTime inicio = LocalDate.parse(inicioStr).atStartOfDay();
-        LocalDateTime fin = LocalDate.parse(finStr).atTime(LocalTime.MAX);
-        List<Object[]> datos = detalleRepo.encontrarTopProductosVendidos(inicio, fin, PageRequest.of(0, 5));
-        return procesarDatos(datos);
-    }
-
-    @GetMapping("/api/grafico/categorias")
-    @ResponseBody
-    public Map<String, Object> getCategorias(@RequestParam("inicio") String inicioStr, @RequestParam("fin") String finStr) {
-        LocalDateTime inicio = LocalDate.parse(inicioStr).atStartOfDay();
-        LocalDateTime fin = LocalDate.parse(finStr).atTime(LocalTime.MAX);
-        List<Object[]> datos = detalleRepo.encontrarVentasPorCategoria(inicio, fin);
-        return procesarDatos(datos);
-    }
-
-    @GetMapping("/api/grafico/pagos")
-    @ResponseBody
-    public Map<String, Object> getPagos(@RequestParam("inicio") String inicioStr, @RequestParam("fin") String finStr) {
-        LocalDateTime inicio = LocalDate.parse(inicioStr).atStartOfDay();
-        LocalDateTime fin = LocalDate.parse(finStr).atTime(LocalTime.MAX);
-        List<Object[]> datos = ventaRepo.sumarVentasPorMetodoPago(inicio, fin);
-        return procesarDatos(datos);
-    }
-
-    // Helper
-    private Map<String, Object> procesarDatos(List<Object[]> datos) {
-        List<String> labels = new ArrayList<>();
-        List<Number> values = new ArrayList<>();
-        if (datos != null && !datos.isEmpty()) {
-            for (Object[] fila : datos) {
-                if (fila[0] != null) {
-                    labels.add(fila[0].toString());
-                    values.add(fila[1] != null ? (Number) fila[1] : 0);
-                }
-            }
-        } else {
-            labels.add("Sin datos"); values.add(0);
-        }
-        Map<String, Object> respuesta = new HashMap<>();
-        respuesta.put("labels", labels);
-        respuesta.put("data", values);
-        return respuesta;
     }
 }
