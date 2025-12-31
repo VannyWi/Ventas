@@ -79,5 +79,14 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
     // Historial de ventas (Lista)
     List<Venta> findByUsuarioIdAndFechaBetweenOrderByFechaDesc(Long usuarioId, LocalDateTime inicio, LocalDateTime fin);
     
+    @Query("SELECT v FROM Venta v WHERE v.fecha BETWEEN :inicio AND :fin " +
+           "AND (:tiendaId IS NULL OR v.tienda.id = :tiendaId) " +
+           "AND (:usuarioId IS NULL OR v.usuario.id = :usuarioId) " +
+           "ORDER BY v.fecha DESC")
+    List<Venta> filtrarVentasAdmin(@Param("inicio") LocalDateTime inicio,
+                                   @Param("fin") LocalDateTime fin,
+                                   @Param("tiendaId") Long tiendaId,
+                                   @Param("usuarioId") Long usuarioId);
+    
     
 }

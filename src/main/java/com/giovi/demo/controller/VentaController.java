@@ -3,6 +3,7 @@ package com.giovi.demo.controller;
 import com.giovi.demo.entity.*;
 import com.giovi.demo.repository.*;
 import com.giovi.demo.service.VentaPdfService;
+import com.giovi.demo.util.AdminVentasExcelExporter;
 import com.giovi.demo.util.MisVentasExcelExporter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -367,5 +368,74 @@ public class VentaController {
 
         MisVentasExcelExporter excelExporter = new MisVentasExcelExporter(listaVentas, fechaInicio, fechaFin);
         excelExporter.export(response);
+    }
+    @GetMapping("/admin/historial-ventas")
+    public String historialVentasAdmin(Model model, Principal principal,
+                                       @RequestParam(required = false) LocalDate fechaInicio,
+                                       @RequestParam(required = false) LocalDate fechaFin,
+                                       @RequestParam(required = false) Long tiendaId,
+                                       @RequestParam(required = false) Long usuarioId) {
+        
+        if (principal == null) return "redirect:/login";
+
+        // 1. Fechas por defecto (Mes actual o día de hoy)
+        if (fechaInicio == null) fechaInicio = LocalDate.now().withDayOfMonth(1); // Inicio de mes
+        if (fechaFin == null) fechaFin = LocalDate.now();
+
+        LocalDateTime inicio = fechaInicio.atStartOfDay();
+        LocalDateTime fin = fechaFin.atTime(LocalTime.MAX);
+
+        // 2. Cargar Listas para los Selects
+        model.addAttribute("listaTiendas", tiendaRepository.findAll());
+        
+        // Cargar usuarios: Si hay tienda seleccionada, cargar solo de esa tienda, sino todos
+        if (tiendaId != null && tiendaId > 0) {
+            model.addAttribute("listaUsuarios", usuarioRepository.findByTiendaId(tiendaId)); // Asegúrate de tener este método en UsuarioRepository
+        } else {
+            model.addAttribute("listaUsuarios", usuarioRepository.findAll());
+        }
+
+        // 3. Ejecutar consulta con filtros
+        // Si tiendaId es 0 lo pasamos como null al repo
+        Long filtroTienda = (tiendaId != null && tiendaId > 0) ? tiendaId : null;
+        Long filtroUsuario = (usuarioId != null && usuarioId > 0) ? usuarioId : null;
+
+        List<Venta> listaVentas = ventaRepository.filtrarVentasAdmin(inicio, fin, filtroTienda, filtroUsuario);
+
+        // 4. Pasar datos a la vista
+        model.addAttribute("listaVentas", listaVentas);
+        model.addAttribute("fechaInicio", fechaInicio);
+        model.addAttribute("fechaFin", fechaFin);
+        model.addAttribute("tiendaSeleccionadaId", tiendaId);
+        model.addAttribute("usuarioSeleccionadoId", usuarioId);
+
+        return "Ventas/historial_admin";
+    }
+
+    @GetMapping("/admin/historial-ventas/exportar")
+    public void exportarHistorialAdmin(HttpServletResponse response,
+                                       @RequestParam(required = false) LocalDate fechaInicio,
+                                       @RequestParam(required = false) LocalDate fechaFin,
+                                       @RequestParam(required = false) Long tiendaId,
+                                       @RequestParam(required = false) Long usuarioId) throws IOException {
+        
+        if (fechaInicio == null) fechaInicio = LocalDate.now().withDayOfMonth(1);
+        if (fechaFin == null) fechaFin = LocalDate.now();
+
+        LocalDateTime inicio = fechaInicio.atStartOfDay();
+        LocalDateTime fin = fechaFin.atTime(LocalTime.MAX);
+        Long filtroTienda = (tiendaId != null && tiendaId > 0) ? tiendaId : null;
+        Long filtroUsuario = (usuarioId != null && usuarioId > 0) ? usuarioId : null;
+
+        List<Venta> listaVentas = ventaRepository.filtrarVentasAdmin(inicio, fin, filtroTienda, filtroUsuario);
+
+        response.reset();
+        response.setContentType("application/octet-stream");
+        String headerKey = "Content-Disposition";
+        String headerValue = "attachment; filename=Historial_Ventas_Admin_" + fechaInicio + "_" + fechaFin + ".xlsx";
+        response.setHeader(headerKey, headerValue);
+
+        AdminVentasExcelExporter exporter = new AdminVentasExcelExporter(listaVentas, fechaInicio, fechaFin);
+        exporter.export(response);
     }
 }

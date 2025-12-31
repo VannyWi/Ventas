@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Historial de Ventas (Admin)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        .filter-card { background-color: #f0f7ff; border-left: 5px solid #0d6efd; }
+        .table-responsive { overflow-x: auto; }
+        .text-monto { font-family: 'Courier New', monospace; font-weight: bold; }
+    </style>
+
+    <script>
+        if (window.history.replaceState) {
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({path: cleanUrl}, '', cleanUrl);
+        }
+    </script>
+</head>
+<body class="bg-light">
+
+    <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
+
+    <div class="container py-4">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div>
+                <h2 class="fw-bold text-primary mb-0">
+                    <i class="bi bi-clock-history me-2"></i>Historial de Ventas
+                </h2>
+                <small class="text-muted">Consulta global de todas las tiendas.</small>
+            </div>
+            
+            <div>
+                <a th:href="@{/ventas/admin/historial-ventas/exportar(fechaInicio=${fechaInicio}, fechaFin=${fechaFin}, tiendaId=${tiendaSeleccionadaId}, usuarioId=${usuarioSeleccionadoId})}" 
+                   class="btn btn-success shadow-sm">
+                    <i class="bi bi-file-earmark-excel me-2"></i>Descargar Reporte
+                </a>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4 filter-card">
+            <div class="card-body py-3">
+                <form th:action="@{/ventas/admin/historial-ventas}" method="get" id="filterForm" class="row g-2 align-items-end">
+                    
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-secondary">Desde:</label>
+                        <input type="date" name="fechaInicio" class="form-control form-control-sm" th:value="${fechaInicio}">
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-secondary">Hasta:</label>
+                        <input type="date" name="fechaFin" class="form-control form-control-sm" th:value="${fechaFin}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-secondary">Tienda:</label>
+                        <select name="tiendaId" class="form-select form-select-sm" onchange="document.getElementById('filterForm').submit();">
+                            <option value="0" th:selected="${tiendaSeleccionadaId == null}">-- Todas --</option>
+                            <option th:each="t : ${listaTiendas}" 
+                                    th:value="${t.id}" 
+                                    th:text="${t.nombre}"
+                                    th:selected="${tiendaSeleccionadaId == t.id}"></option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-secondary">Vendedor:</label>
+                        <select name="usuarioId" class="form-select form-select-sm">
+                            <option value="0" th:selected="${usuarioSeleccionadoId == null}">-- Todos --</option>
+                            <option th:each="u : ${listaUsuarios}" 
+                                    th:value="${u.id}" 
+                                    th:text="${u.nombre + ' ' + u.apellido}"
+                                    th:selected="${usuarioSeleccionadoId == u.id}"></option>
+                        </select>
+                    </div>
+
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-primary w-100" title="Buscar">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="tablaHistorial" class="table table-hover align-middle w-100">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Ticket</th>
+                                <th>Fecha</th>
+                                <th>Tienda</th>
+                                <th>Vendedor</th>
+                                <th>Cliente</th>
+                                <th>Método</th>
+                                <th class="text-end">Total</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <th:block th:each="v : ${listaVentas}">
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border" 
+                                              th:text="${v.numeroVenta != null ? v.numeroVenta : 'ID-'+v.id}"></span>
+                                    </td>
+                                    <td th:text="${#temporals.format(v.fecha, 'dd/MM/yyyy HH:mm')}"></td>
+                                    
+                                    <td>
+                                        <span class="badge bg-light text-dark border" 
+                                              th:text="${v.tienda != null ? v.tienda.nombre : 'Central'}"></span>
+                                    </td>
+
+                                    <td th:text="${v.usuario != null ? v.usuario.nombre + ' ' + v.usuario.apellido : '-'}"></td>
+                                    
+                                    <td th:text="${v.cliente != null ? v.cliente.nombre : 'Público General'}"></td>
+                                    
+                                    <td>
+                                        <span class="badge rounded-pill"
+                                              th:classappend="${v.metodoPago == 'Efectivo' ? 'bg-success' : 'bg-primary'}"
+                                              th:text="${v.metodoPago}"></span>
+                                    </td>
+                                    
+                                    <td class="text-end text-monto text-primary fw-bold"
+                                        th:text="'S/. ' + ${#numbers.formatDecimal(v.montoTotal, 1, 'COMMA', 2, 'POINT')}"></td>
+                                    
+                                    <td>
+                                        <a th:href="@{/ventas/ver/{id}(id=${v.id})}" class="btn btn-sm btn-outline-info" title="Ver Detalle">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            </th:block>
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-secondary fw-bold">
+                                <td colspan="6" class="text-end">TOTAL GENERAL:</td>
+                                <td class="text-end" id="totalFooter">S/. 0.00</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            var table = $('#tablaHistorial').DataTable({
+                "pageLength": 20,
+                "lengthMenu": [ [10, 20, 50, -1], [10, 20, 50, "Todos"] ],
+                "order": [ [1, 'desc'] ], // Ordenar por fecha descendente
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+                },
+                "drawCallback": function() {
+                    // Calcular total de la página actual
+                    var api = this.api();
+                    var total = api.column(6, {page: 'current'}).data().reduce(function(a, b) {
+                        // Limpiar formato moneda "S/. 1,200.00" -> 1200.00
+                        var x = parseFloat(a.toString().replace(/[^\d.-]/g, '')) || 0;
+                        var y = parseFloat(b.toString().replace(/[^\d.-]/g, '')) || 0;
+                        return x + y;
+                    }, 0);
+                    
+                    $('#totalFooter').html('S/. ' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                    $('.dataTables_paginate > .pagination').addClass('justify-content-center');
+                }
+            });
+
+            // Loading
+            $('#filterForm').on('submit', function() {
+                Swal.fire({
+                    title: 'Buscando...',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading() }
+                });
+            });
+        });
+
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || (typeof Swal !== 'undefined' && Swal.isVisible())) Swal.close();
+        });
+    </script>
+</body>
+</html>
