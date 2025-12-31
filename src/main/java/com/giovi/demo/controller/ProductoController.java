@@ -193,33 +193,39 @@ public class ProductoController {
         return "productos/bajo_stock";
     }
 
-    @GetMapping("/bajo-stock/exportar")
+   @GetMapping("/bajo-stock/exportar")
     public void exportarExcelBajoStock(HttpServletResponse response, Principal principal) throws IOException {
         if (principal == null) {
             response.sendRedirect("/login");
             return;
         }
 
+        Usuario usuario = usuarioRepository.findByUsername(principal.getName()).orElse(null);
+        List<Producto> listProductos = new ArrayList<>();
+        String nombreTiendaReporte = "Todas las Tiendas (Central)"; // Valor por defecto
+
+        if (usuario != null) {
+            if (usuario.getTienda() != null) {
+                // Es un vendedor de tienda específica
+                listProductos = productoRepository.findByTiendaIdAndStockLessThanAndActivoTrue(usuario.getTienda().getId(), 10);
+                nombreTiendaReporte = usuario.getTienda().getNombre();
+            } else {
+                // Es un administrador (ve todo)
+                listProductos = productoRepository.findByStockLessThanAndActivoTrue(10);
+            }
+        }
+
+        response.reset(); // Limpieza clave
         response.setContentType("application/octet-stream");
-        DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss");
+        DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm");
         String currentDateTime = dateFormatter.format(new Date());
 
         String headerKey = "Content-Disposition";
         String headerValue = "attachment; filename=Stock_Critico_" + currentDateTime + ".xlsx";
         response.setHeader(headerKey, headerValue);
 
-        Usuario usuario = usuarioRepository.findByUsername(principal.getName()).orElse(null);
-        List<Producto> listProductos = new ArrayList<>();
-
-        if (usuario != null) {
-            if (usuario.getTienda() != null) {
-                listProductos = productoRepository.findByTiendaIdAndStockLessThanAndActivoTrue(usuario.getTienda().getId(), 10);
-            } else {
-                listProductos = productoRepository.findByStockLessThanAndActivoTrue(10);
-            }
-        }
-
-        StockExcelExporter excelExporter = new StockExcelExporter(listProductos);
+        // Pasamos el nombre de la tienda al constructor
+        StockExcelExporter excelExporter = new StockExcelExporter(listProductos, nombreTiendaReporte);
         excelExporter.export(response);
     }
 }

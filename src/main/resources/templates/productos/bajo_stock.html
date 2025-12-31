@@ -39,21 +39,29 @@
                             <tr>
                                 <th>Código</th>
                                 <th>Producto</th>
-                                <th>Categoría</th>
+                                <th>Tienda</th> <th>Categoría</th>
                                 <th>Precio</th>
                                 <th class="text-center">Stock Actual</th>
-                                </tr>
+                            </tr>
                         </thead>
                         <tbody>
                             <th:block th:each="p : ${listaProductos}">
                                 <tr>
                                     <td class="fw-bold text-secondary" th:text="${p.codigoBarras}"></td>
                                     <td th:text="${p.nombre}"></td>
+                                    
+                                    <td>
+                                        <span class="badge bg-light text-dark border" 
+                                              th:text="${p.tienda != null ? p.tienda.nombre : 'Central'}">
+                                        </span>
+                                    </td>
+
                                     <td>
                                         <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-10" 
                                               th:text="${p.categoria != null ? p.categoria.nombre : '-'}">
                                         </span>
                                     </td>
+                                    
                                     <td th:text="'S/. ' + ${#numbers.formatDecimal(p.precio, 1, 'COMMA', 2, 'POINT')}"></td>
                                     
                                     <td class="text-center">
@@ -62,8 +70,7 @@
                                             <span th:text="${p.stock}"></span>
                                         </span>
                                     </td>
-                                    
-                                    </tr>
+                                </tr>
                             </th:block>
                         </tbody>
                     </table>
@@ -82,7 +89,7 @@
             $('#tablaStock').DataTable({
                 "pageLength": 20,
                 "lengthMenu": [ [10, 20, 50, -1], [10, 20, 50, "Todos"] ],
-                "order": [ [4, 'asc'] ], // Ordenar por Stock (ahora es la columna 4)
+                "order": [ [5, 'asc'] ], // Ordenar por Stock
                 "language": {
                     "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
                 },
