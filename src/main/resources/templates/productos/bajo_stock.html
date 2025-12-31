@@ -22,7 +22,7 @@
                 <h2 class="fw-bold text-danger mb-0">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>Stock Crítico
                 </h2>
-                <small class="text-muted">Productos activos con menos de 10 unidades.</small>
+                <small class="text-muted">Productos con menos de 10 unidades.</small>
             </div>
             <div>
                 <a th:href="@{/productos/bajo-stock/exportar}" class="btn btn-success shadow-sm">
@@ -48,7 +48,9 @@
                             <th:block th:each="p : ${listaProductos}">
                                 <tr>
                                     <td class="fw-bold text-secondary" th:text="${p.codigoBarras}"></td>
-                                    <td th:text="${p.nombre}"></td>
+                                   <td>
+                                        <div class="fw-bold text-dark" th:text="${p.nombre}"></div>
+                                    </td>
                                     
                                     <td>
                                         <span class="badge bg-light text-dark border" 
@@ -56,13 +58,11 @@
                                         </span>
                                     </td>
 
-                                    <td>
-                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-10" 
-                                              th:text="${p.categoria != null ? p.categoria.nombre : '-'}">
-                                        </span>
+                                    <td th:text="${p.categoria != null ? p.categoria.nombre : '-'}">
                                     </td>
                                     
-                                    <td th:text="'S/. ' + ${#numbers.formatDecimal(p.precio, 1, 'COMMA', 2, 'POINT')}"></td>
+                                     <td class="text-success fw-bold" 
+                                        th:text="'S/. ' + ${#numbers.formatDecimal(p.precio, 1, 'COMMA', 2, 'POINT')}"></td>
                                     
                                     <td class="text-center">
                                         <span th:class="${'badge rounded-pill ' + (p.stock == 0 ? 'bg-danger' : 'bg-warning text-dark')} + ' badge-stock'">
