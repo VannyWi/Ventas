@@ -223,4 +223,12 @@ public class MisVentasExcelExporter {
         workbook.close();
         outputStream.close();
     }
+    // AGREGAR ESTO EN: MisVentasExcelExporter.java Y AdminVentasExcelExporter.java
+public void generate(java.io.OutputStream outputStream) throws java.io.IOException {
+    initStyles();
+    writeHeaderLine();
+    writeDataLines();
+    workbook.write(outputStream);
+    workbook.close();
+}
 }

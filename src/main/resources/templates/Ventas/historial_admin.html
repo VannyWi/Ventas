@@ -7,11 +7,14 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     
     <style>
+        .bg-light-yellow { background-color: #fff3cd; }
+        .text-yellow-dark { color: #856404; }
         .venta-id { font-family: 'Courier New', Courier, monospace; font-weight: bold; color: #4e73df; }
-        .filter-input { max-width: 150px; }
+        .card-stat { transition: transform 0.2s; }
+        .card-stat:hover { transform: translateY(-3px); }
         .table-responsive { overflow-x: auto; }
-        /* Estilo para los selectores del admin */
-        .filter-select { max-width: 200px; }
+        .form-select-sm { min-width: 140px; }
+        .filter-date { max-width: 130px; }
     </style>
 </head>
 <body class="bg-light">
@@ -21,50 +24,108 @@
     <div class="container-fluid px-4 py-4">
         
         <div class="card shadow-sm mb-4 border-0">
-            <div class="card-body py-3 d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <div>
-                    <h4 class="fw-bold text-primary mb-0">
-                        <i class="bi bi-clock-history me-2"></i>Historial Global
-                    </h4>
-                    <small class="text-muted">Consulta de ventas de todas las tiendas.</small>
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+                    <div>
+                        <h4 class="fw-bold text-primary mb-0">
+                            <i class="bi bi-clock-history me-2"></i>Historial Global
+                        </h4>
+                        <small class="text-muted">Consulta de todas las tiendas.</small>
+                    </div>
+                    
+                    <a th:href="@{/ventas/admin/historial-ventas/exportar(fechaInicio=${fechaInicio}, fechaFin=${fechaFin}, tiendaId=${tiendaSeleccionadaId}, usuarioId=${usuarioSeleccionadoId})}" 
+                       class="btn btn-success text-white shadow-sm">
+                        <i class="bi bi-file-earmark-excel me-1"></i>Descargar Excel
+                    </a>
                 </div>
-                
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <form th:action="@{/ventas/admin/historial-ventas}" method="get" id="filterForm" class="d-flex align-items-center gap-2 flex-wrap">
-                        
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white"><i class="bi bi-calendar3"></i></span>
-                            <input type="date" name="fechaInicio" class="form-control filter-input" th:value="${fechaInicio}">
-                            <span class="input-group-text bg-light">-</span>
-                            <input type="date" name="fechaFin" class="form-control filter-input" th:value="${fechaFin}">
-                        </div>
 
-                        <select name="tiendaId" class="form-select form-select-sm filter-select" 
+                <form th:action="@{/ventas/admin/historial-ventas}" method="get" id="filterForm" class="row g-2 align-items-end">
+                    
+                    <div class="col-auto">
+                        <label class="form-label small fw-bold text-secondary mb-1">Rango de Fechas:</label>
+                        <div class="input-group input-group-sm">
+                            <input type="date" name="fechaInicio" class="form-control filter-date" th:value="${fechaInicio}">
+                            <span class="input-group-text bg-light">-</span>
+                            <input type="date" name="fechaFin" class="form-control filter-date" th:value="${fechaFin}">
+                        </div>
+                    </div>
+
+                    <div class="col-auto">
+                        <label class="form-label small fw-bold text-secondary mb-1">Tienda:</label>
+                        <select name="tiendaId" class="form-select form-select-sm" 
                                 onchange="document.getElementById('filterForm').submit();">
-                            <option value="0" th:selected="${tiendaSeleccionadaId == null}">-- Todas las Tiendas --</option>
+                            <option value="0" th:selected="${tiendaSeleccionadaId == null}"> Todas </option>
                             <option th:each="t : ${listaTiendas}" 
                                     th:value="${t.id}" 
                                     th:text="${t.nombre}"
                                     th:selected="${tiendaSeleccionadaId == t.id}"></option>
                         </select>
+                    </div>
 
-                        <select name="usuarioId" class="form-select form-select-sm filter-select">
-                            <option value="0" th:selected="${usuarioSeleccionadoId == null}">-- Todos los Vendedores --</option>
+                    <div class="col-auto">
+                        <label class="form-label small fw-bold text-secondary mb-1">Vendedor:</label>
+                        <select name="usuarioId" class="form-select form-select-sm">
+                            <option value="0" th:selected="${usuarioSeleccionadoId == null}"> Todos </option>
                             <option th:each="u : ${listaUsuarios}" 
                                     th:value="${u.id}" 
                                     th:text="${u.nombre + ' ' + u.apellido}"
                                     th:selected="${usuarioSeleccionadoId == u.id}"></option>
                         </select>
+                    </div>
 
-                        <button type="submit" class="btn btn-sm btn-primary" title="Buscar">
-                            <i class="bi bi-search"></i>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-primary w-100" title="Aplicar Filtros">
+                            <i class="bi bi-search me-1"></i> Buscar
                         </button>
-                    </form>
-                    
-                    <a th:href="@{/ventas/admin/historial-ventas/exportar(fechaInicio=${fechaInicio}, fechaFin=${fechaFin}, tiendaId=${tiendaSeleccionadaId}, usuarioId=${usuarioSeleccionadoId})}" 
-                       class="btn btn-sm btn-success text-white" title="Descargar Reporte">
-                        <i class="bi bi-file-earmark-excel me-1"></i>Excel
-                    </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <h6 class="fw-bold text-muted mb-3">Resumen Financiero (Filtrado)</h6>
+        <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="card shadow-sm border-start border-4 border-success h-100 card-stat">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 bg-success bg-opacity-10 p-3 rounded"><i class="bi bi-cash-stack text-success fs-3"></i></div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted small text-uppercase">Efectivo</h6>
+                            <h4 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoEfectivo, 1, 'COMMA', 2, 'POINT')}"></h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card shadow-sm border-start border-4 border-primary h-100 card-stat">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 bg-primary bg-opacity-10 p-3 rounded"><i class="bi bi-credit-card-2-front text-primary fs-3"></i></div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted small text-uppercase">Tarjeta</h6>
+                            <h4 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoTarjeta, 1, 'COMMA', 2, 'POINT')}"></h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card shadow-sm border-start border-4 border-warning h-100 card-stat">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 bg-light-yellow p-3 rounded"><i class="bi bi-qr-code-scan text-yellow-dark fs-3"></i></div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted small text-uppercase">Yape/Plin</h6>
+                            <h4 class="mb-0 fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(montoQr, 1, 'COMMA', 2, 'POINT')}"></h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card shadow-sm border-start border-4 border-dark h-100 card-stat bg-white">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-shrink-0 bg-dark bg-opacity-10 p-3 rounded"><i class="bi bi-wallet2 text-dark fs-3"></i></div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-dark fw-bold small text-uppercase">TOTAL</h6>
+                            <h4 class="mb-0 fw-bold text-dark" th:text="'S/. ' + ${#numbers.formatDecimal(montoTotalGeneral != null ? montoTotalGeneral : 0.0, 1, 'COMMA', 2, 'POINT')}"></h4>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -88,7 +149,6 @@
                         <tbody>
                             <tr th:each="v : ${listaVentas}">
                                 <td><span class="venta-id" th:text="${v.numeroVenta}"></span></td>
-                                
                                 <td th:text="${#temporals.format(v.fecha, 'dd/MM/yyyy HH:mm')}"></td>
                                 
                                 <td>
@@ -97,7 +157,6 @@
                                 </td>
 
                                 <td class="small text-muted" th:text="${v.usuario != null ? v.usuario.nombre : '-'}"></td>
-                                
                                 <td th:text="${v.cliente != null ? v.cliente.nombre : 'Público'}"></td>
                                 
                                 <td>
@@ -120,14 +179,7 @@
                                 </td>
                             </tr>
                         </tbody>
-                        <tfoot>
-                            <tr class="table-secondary fw-bold border-top border-2">
-                                <td colspan="6" class="text-end">TOTAL EN PANTALLA:</td>
-                                <td class="text-end text-dark" id="totalFooter">S/. 0.00</td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                        </table>
                 </div>
             </div>
         </div>
@@ -156,8 +208,7 @@
                                     <th class="text-end">Subtotal</th>
                                 </tr>
                             </thead>
-                            <tbody id="tablaDetallesBody">
-                                </tbody>
+                            <tbody id="tablaDetallesBody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -177,84 +228,63 @@
     <script th:inline="javascript">
         /*<![CDATA[*/
         
-        // Limpieza de URL
+        // Limpieza URL
         if (window.history.replaceState) {
             const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
             window.history.replaceState({path: cleanUrl}, '', cleanUrl);
         }
 
         $(document).ready(function() {
-            var table = $('#tablaHistorial').DataTable({
+            $('#tablaHistorial').DataTable({
                 "pageLength": 20,
                 "lengthMenu": [ [10, 20, 50, -1], [10, 20, 50, "Todos"] ],
                 "language": { "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json" },
-                "order": [ [1, "desc"] ], // Ordenar por fecha
-                "drawCallback": function() {
-                    // Sumar total visible en el footer
-                    var api = this.api();
-                    var total = api.column(6, {page: 'current'}).data().reduce(function(a, b) {
-                        var x = parseFloat(a.toString().replace(/[^\d.-]/g, '')) || 0;
-                        var y = parseFloat(b.toString().replace(/[^\d.-]/g, '')) || 0;
-                        return x + y;
-                    }, 0);
-                    $('#totalFooter').html('S/. ' + total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                }
+                "order": [ [1, "desc"] ] // Ordenar por fecha
             });
 
-            // Loading al filtrar
-            $('#filterForm').on('submit', function() {
-                Swal.fire({
-                    title: 'Buscando...',
-                    allowOutsideClick: false,
-                    didOpen: () => { Swal.showLoading() }
+            // Loading
+            const form = document.getElementById('filterForm');
+            if(form) {
+                form.addEventListener('submit', function() {
+                    Swal.fire({
+                        title: 'Filtrando...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
                 });
-            });
+            }
         });
 
-        // --- FUNCIÓN DEL POPUP (IGUAL A MIS VENTAS) ---
-        // Usa la API que ya tienes en el Controller: /ventas/api/detalle/{id}
+        // Función Popup
         function verDetalle(idVenta, nroTicket, metodoPago) {
             const tbody = document.getElementById('tablaDetallesBody');
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 small">Cargando...</div></td></tr>';
             
-            // 1. Limpiar y mostrar 'Cargando...'
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 small">Cargando datos...</div></td></tr>';
-            
-            // 2. Setear datos del header del modal
             document.getElementById('modalTicketNro').textContent = nroTicket;
             document.getElementById('modalMetodoPago').textContent = metodoPago;
             
-            // 3. Abrir Modal
             const modal = new bootstrap.Modal(document.getElementById('modalDetalle'));
             modal.show();
 
-            // 4. Llamada AJAX (Fetch)
             fetch('/ventas/api/detalle/' + idVenta)
                 .then(r => r.json())
                 .then(data => {
-                    tbody.innerHTML = ''; // Limpiar spinner
+                    tbody.innerHTML = '';
                     let total = 0;
-
                     if(!data || data.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No se encontraron detalles</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Sin detalles</td></tr>';
                         return;
                     }
-
-                    // 5. Construir filas
                     data.forEach(item => {
                         total += item.subtotal;
                         tbody.innerHTML += `
                             <tr>
-                                <td>
-                                    <div class="fw-bold">${item.producto}</div>
-                                    <small class="text-muted">${item.codigo}</small>
-                                </td>
+                                <td><div class="fw-bold">${item.producto}</div><small class="text-muted">${item.codigo}</small></td>
                                 <td class="text-center align-middle">${item.cantidad}</td>
                                 <td class="text-end align-middle">S/. ${item.precioUnitario.toFixed(2)}</td>
                                 <td class="text-end align-middle fw-bold">S/. ${item.subtotal.toFixed(2)}</td>
                             </tr>`;
                     });
-
-                    // 6. Fila Total Modal
                     tbody.innerHTML += `
                         <tr class="table-secondary border-top border-2 border-secondary">
                             <td colspan="3" class="text-end fw-bold">TOTAL VENTA:</td>
@@ -263,11 +293,10 @@
                 })
                 .catch(err => {
                     console.error(err);
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error al cargar información</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error al cargar</td></tr>';
                 });
         }
-        
-        // Fix para SweetAlert cuando se navega atrás
+
         window.addEventListener('pageshow', function(event) {
             if (event.persisted || (typeof Swal !== 'undefined' && Swal.isVisible())) Swal.close();
         });
