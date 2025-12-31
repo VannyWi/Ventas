@@ -232,20 +232,27 @@ public class ProductoController {
     public String bajoStockAdmin(Model model, Principal principal,
                                  @RequestParam(required = false) Long tiendaId) {
         
-        // 1. Cargar lista de tiendas para el Select
+        // 1. Validar sesión
+        if (principal == null) return "redirect:/login";
+
+        // 2. Cargar lista de tiendas para el Select
         model.addAttribute("listaTiendas", tiendaRepository.findAll());
         model.addAttribute("tiendaSeleccionadaId", tiendaId);
 
-        // 2. Lógica de Filtrado (Siempre validando activo = true)
+        // 3. Lógica de Filtrado (Siempre validando activo = true)
         List<Producto> productos;
+        // Si hay tienda seleccionada y es mayor a 0
         if (tiendaId != null && tiendaId > 0) {
             productos = productoRepository.findByTiendaIdAndStockLessThanAndActivoTrue(tiendaId, 10);
         } else {
+            // Si es 0 o nulo, trae todo
             productos = productoRepository.findByStockLessThanAndActivoTrue(10);
         }
 
         model.addAttribute("listaProductos", productos);
-        return "productos/bajo_stock_admin"; // Nueva Vista
+        
+        // ESTO ES IMPORTANTE: Debe coincidir con la carpeta y nombre del archivo HTML
+        return "productos/bajo_stock_admin"; 
     }
 
     @GetMapping("/admin/bajo-stock/exportar")
@@ -257,23 +264,22 @@ public class ProductoController {
 
         if (tiendaId != null && tiendaId > 0) {
             productos = productoRepository.findByTiendaIdAndStockLessThanAndActivoTrue(tiendaId, 10);
-            nombreTienda = tiendaRepository.findById(tiendaId).map(t -> t.getNombre()).orElse("Tienda ID " + tiendaId);
+            // Buscar nombre de tienda para el reporte
+            nombreTienda = tiendaRepository.findById(tiendaId)
+                            .map(t -> t.getNombre())
+                            .orElse("Tienda ID " + tiendaId);
         } else {
             productos = productoRepository.findByStockLessThanAndActivoTrue(10);
         }
 
-        generarExcel(response, productos, nombreTienda);
-    }
-
-    // Método auxiliar para no repetir código de Excel
-    private void generarExcel(HttpServletResponse response, List<Producto> productos, String nombreTienda) throws IOException {
+        // Reutilizamos la lógica de exportación
         response.reset();
         response.setContentType("application/octet-stream");
         DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm");
         String currentDateTime = dateFormatter.format(new Date());
 
         String headerKey = "Content-Disposition";
-        String headerValue = "attachment; filename=Stock_Critico_" + currentDateTime + ".xlsx";
+        String headerValue = "attachment; filename=Stock_Critico_Admin_" + currentDateTime + ".xlsx";
         response.setHeader(headerKey, headerValue);
 
         StockExcelExporter excelExporter = new StockExcelExporter(productos, nombreTienda);

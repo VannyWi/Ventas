@@ -15,10 +15,10 @@
     </style>
 
     <script>
+        // Se ejecuta inmediatamente al leer el head, antes de pintar la página
         if (window.history.replaceState) {
-            // Obtiene la URL base sin los parámetros de consulta (?tiendaId=...)
+            // Reconstruye la URL sin los parámetros de búsqueda (?tiendaId=...)
             var cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            // Reemplaza la entrada actual del historial
             window.history.replaceState({path: cleanUrl}, '', cleanUrl);
         }
     </script>
@@ -51,7 +51,6 @@
                     <div class="col-auto">
                         <label class="fw-bold text-primary"><i class="bi bi-shop me-1"></i>Filtrar por Tienda:</label>
                     </div>
-                    
                     <div class="col-auto">
                         <select name="tiendaId" class="form-select form-select-sm" style="width: 300px;">
                             <option value="0" th:selected="${tiendaSeleccionadaId == null || tiendaSeleccionadaId == 0}">-- Ver Todas las Tiendas --</option>
@@ -68,8 +67,7 @@
                             <i class="bi bi-search"></i>
                         </button>
                     </div>
-                    
-                    </form>
+                </form>
             </div>
         </div>
 
@@ -129,7 +127,7 @@
 
     <script>
         $(document).ready(function() {
-            // Configuración DataTables
+            // DataTables
             $('#tablaStockAdmin').DataTable({
                 "pageLength": 20,
                 "lengthMenu": [ [10, 20, 50, -1], [10, 20, 50, "Todos"] ],
@@ -142,7 +140,7 @@
                 }
             });
 
-            // Loading con SweetAlert al filtrar
+            // Loading
             $('#filterForm').on('submit', function() {
                 Swal.fire({
                     title: 'Filtrando datos...',
@@ -153,7 +151,6 @@
             });
         });
         
-        // Control del botón atrás
         window.addEventListener('pageshow', function(event) {
             if (event.persisted || (typeof Swal !== 'undefined' && Swal.isVisible())) {
                 Swal.close();
