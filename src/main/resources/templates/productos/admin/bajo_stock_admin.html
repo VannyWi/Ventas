@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Gestión Stock Crítico - Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        .badge-stock { font-size: 0.9em; padding: 8px 12px; }
+        .table-responsive { overflow-x: auto; }
+        .text-tienda { color: #6610f2; font-weight: 500; }
+        .filter-card { background-color: #f0f7ff; border-left: 5px solid #0d6efd; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <div th:replace="~{layout/fragments :: navbarAdmin}"></div> 
+
+    <div class="container py-4">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div>
+                <h2 class="fw-bold text-danger mb-0">
+                    <i class="bi bi-shield-lock-fill me-2"></i>Stock Crítico (Admin)
+                </h2>
+                <small class="text-muted">Gestión global de productos con bajo stock (Activos).</small>
+            </div>
+            
+            <div>
+                <a th:href="@{/productos/admin/bajo-stock/exportar(tiendaId=${tiendaSeleccionadaId})}" 
+                   class="btn btn-success shadow-sm">
+                    <i class="bi bi-file-earmark-excel me-2"></i>Descargar Excel
+                </a>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4 filter-card">
+            <div class="card-body py-3">
+                <form th:action="@{/productos/admin/bajo-stock}" method="get" id="filterForm" class="row g-3 align-items-center">
+                    <div class="col-auto">
+                        <label class="fw-bold text-primary"><i class="bi bi-shop me-1"></i>Filtrar por Tienda:</label>
+                    </div>
+                    <div class="col-auto">
+                        <select name="tiendaId" class="form-select form-select-sm" style="width: 300px;">
+                            <option value="0" th:selected="${tiendaSeleccionadaId == null || tiendaSeleccionadaId == 0}">-- Ver Todas las Tiendas --</option>
+                            <option th:each="t : ${listaTiendas}" 
+                                    th:value="${t.id}" 
+                                    th:text="${t.nombre}"
+                                    th:selected="${tiendaSeleccionadaId == t.id}">
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-primary" title="Buscar">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="tablaStockAdmin" class="table table-hover align-middle w-100">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Código</th>
+                                <th>Producto</th>
+                                <th>Tienda</th>
+                                <th>Categoría</th>
+                                <th>Costo/Precio</th>
+                                <th class="text-center">Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <th:block th:each="p : ${listaProductos}">
+                                <tr>
+                                    <td class="fw-bold text-secondary" th:text="${p.codigoBarras}"></td>
+                                    
+                                    <td>
+                                        <div class="fw-bold text-dark" th:text="${p.nombre}"></div>
+                                    </td>
+                                    
+                                    <td>
+                                        <span class="badge bg-light text-dark border border-secondary border-opacity-25" 
+                                              th:text="${p.tienda != null ? p.tienda.nombre : 'Central'}">
+                                        </span>
+                                    </td>
+
+                                    <td th:text="${p.categoria != null ? p.categoria.nombre : '-'}"></td>
+                                    
+                                    <td class="text-success fw-bold" 
+                                        th:text="'S/. ' + ${#numbers.formatDecimal(p.precio, 1, 'COMMA', 2, 'POINT')}"></td>
+                                    
+                                    <td class="text-center">
+                                        <span th:class="${'badge rounded-pill ' + (p.stock == 0 ? 'bg-danger' : 'bg-warning text-dark')} + ' badge-stock'">
+                                            <i th:class="${p.stock == 0 ? 'bi bi-x-circle-fill' : 'bi bi-exclamation-triangle-fill'} + ' me-1'"></i>
+                                            <span th:text="${p.stock}"></span>
+                                        </span>
+                                    </td>
+                                </tr>
+                            </th:block>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            
+            // 1. URL LIMPIA (ESTO ES LO QUE BUSCABAS)
+            // Borra visualmente los parámetros GET (?tiendaId=...) de la barra de direcciones
+            if (window.history.replaceState) {
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.replaceState({path: cleanUrl}, '', cleanUrl);
+            }
+
+            // 2. Configuración DataTables
+            $('#tablaStockAdmin').DataTable({
+                "pageLength": 20,
+                "lengthMenu": [ [10, 20, 50, -1], [10, 20, 50, "Todos"] ],
+                "order": [ [5, 'asc'] ], // Ordenar por Stock (Columna 5)
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+                },
+                "drawCallback": function() {
+                    $('.dataTables_paginate > .pagination').addClass('justify-content-center');
+                }
+            });
+
+            // 3. Loading con SweetAlert al filtrar
+            $('#filterForm').on('submit', function() {
+                Swal.fire({
+                    title: 'Filtrando datos...',
+                    html: 'Por favor espere',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading() }
+                });
+            });
+        });
+        
+        // Control del botón atrás para cerrar el loading
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || (typeof Swal !== 'undefined' && Swal.isVisible())) {
+                Swal.close();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -228,4 +228,55 @@ public class ProductoController {
         StockExcelExporter excelExporter = new StockExcelExporter(listProductos, nombreTiendaReporte);
         excelExporter.export(response);
     }
+    @GetMapping("/admin/bajo-stock")
+    public String bajoStockAdmin(Model model, Principal principal,
+                                 @RequestParam(required = false) Long tiendaId) {
+        
+        // 1. Cargar lista de tiendas para el Select
+        model.addAttribute("listaTiendas", tiendaRepository.findAll());
+        model.addAttribute("tiendaSeleccionadaId", tiendaId);
+
+        // 2. Lógica de Filtrado (Siempre validando activo = true)
+        List<Producto> productos;
+        if (tiendaId != null && tiendaId > 0) {
+            productos = productoRepository.findByTiendaIdAndStockLessThanAndActivoTrue(tiendaId, 10);
+        } else {
+            productos = productoRepository.findByStockLessThanAndActivoTrue(10);
+        }
+
+        model.addAttribute("listaProductos", productos);
+        return "productos/bajo_stock_admin"; // Nueva Vista
+    }
+
+    @GetMapping("/admin/bajo-stock/exportar")
+    public void exportarBajoStockAdmin(HttpServletResponse response, 
+                                       @RequestParam(required = false) Long tiendaId) throws IOException {
+        
+        List<Producto> productos;
+        String nombreTienda = "Todas las Tiendas (Reporte General)";
+
+        if (tiendaId != null && tiendaId > 0) {
+            productos = productoRepository.findByTiendaIdAndStockLessThanAndActivoTrue(tiendaId, 10);
+            nombreTienda = tiendaRepository.findById(tiendaId).map(t -> t.getNombre()).orElse("Tienda ID " + tiendaId);
+        } else {
+            productos = productoRepository.findByStockLessThanAndActivoTrue(10);
+        }
+
+        generarExcel(response, productos, nombreTienda);
+    }
+
+    // Método auxiliar para no repetir código de Excel
+    private void generarExcel(HttpServletResponse response, List<Producto> productos, String nombreTienda) throws IOException {
+        response.reset();
+        response.setContentType("application/octet-stream");
+        DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd_HH-mm");
+        String currentDateTime = dateFormatter.format(new Date());
+
+        String headerKey = "Content-Disposition";
+        String headerValue = "attachment; filename=Stock_Critico_" + currentDateTime + ".xlsx";
+        response.setHeader(headerKey, headerValue);
+
+        StockExcelExporter excelExporter = new StockExcelExporter(productos, nombreTienda);
+        excelExporter.export(response);
+    }
 }
