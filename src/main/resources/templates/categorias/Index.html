@@ -103,19 +103,34 @@
 
     <script th:inline="javascript">
         /*<![CDATA[*/
-        // 1. ALERTAS
-        var mensaje = /*[[${mensaje}]]*/ null;
-        var tipo = /*[[${tipo}]]*/ null;
+        
+        // --- FUNCIÓN DE LOADING ---
+        function mostrarLoading() {
+            Swal.fire({
+                title: 'Procesando...',
+                html: 'Por favor espere un momento',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading()
+                }
+            });
+        }
 
+        // --- INTERCEPTAR ENVÍO DEL FORMULARIO (GUARDAR) ---
+        document.getElementById('formCategoria').addEventListener('submit', function() {
+            mostrarLoading(); 
+        });
+
+        // 1. ALERTAS (Tus alertas originales)
+        var mensaje = /*[[${mensaje}]]*/ null;
+        
         if(mensaje) {
+            // Aquí NO usamos 'timer', por lo que el botón OK se queda hasta que el usuario hace click.
             if(mensaje === 'guardado') Swal.fire('¡Éxito!', 'Categoría guardada', 'success');
             else if(mensaje === 'editado') Swal.fire('¡Éxito!', 'Categoría actualizada', 'success');
             else if(mensaje === 'eliminado') Swal.fire('Eliminado', 'Categoria eliminado', 'success');
             else if(mensaje === 'duplicado') Swal.fire('Atención', 'Ya existe esta Categoria', 'warning');
-            
-            // NUEVA ALERTA ESPECÍFICA DE CLAVE FORÁNEA
             else if(mensaje === 'tiene_productos') Swal.fire('No se puede eliminar', 'Esta categoría tiene productos asociados.', 'error');
-            
             else Swal.fire('Error', 'Ocurrió un error inesperado', 'error');
         }
 
@@ -137,7 +152,7 @@
             document.getElementById('nombreCategoria').focus();
         }
 
-        // 4. CONFIRMAR ELIMINAR (JS)
+        // 4. CONFIRMAR ELIMINAR (Con Loading)
         function confirmarEliminar(id) {
             Swal.fire({
                 title: '¿Estás seguro?',
@@ -150,6 +165,7 @@
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
+                    mostrarLoading(); // Muestra el spinner antes de recargar
                     window.location.href = "/categorias/eliminar/" + id;
                 }
             })
@@ -163,6 +179,16 @@
                 row.style.display = row.textContent.toLowerCase().includes(value) ? '' : 'none';
             });
         });
+
+        // --- CORRECCIÓN IMPORTANTE: CONTROL DEL LOADING AL VOLVER ---
+        // Modificado para que NO cierre la alerta de éxito, solo cierre si viene del historial (Atrás)
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                // Solo si la página se carga desde la memoria caché (botón atrás) cerramos alertas
+                Swal.close();
+            }
+        });
+
         /*]]>*/
     </script>
 </body>

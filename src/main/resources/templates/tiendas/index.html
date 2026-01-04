@@ -127,7 +127,26 @@
 
     <script th:inline="javascript">
         /*<![CDATA[*/
-        // 1. GESTIÓN DE ALERTAS
+        
+        // --- 1. FUNCIÓN MOSTRAR LOADING ---
+        function mostrarLoading() {
+            Swal.fire({
+                title: 'Procesando...',
+                html: 'Por favor espere un momento.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading()
+                }
+            });
+        }
+
+        // --- 2. INTERCEPTAR EL ENVÍO DEL FORMULARIO ---
+        // Esto muestra el loading cuando das click a "Guardar Tienda"
+        document.getElementById('formTienda').addEventListener('submit', function() {
+            mostrarLoading();
+        });
+
+        // --- 3. GESTIÓN DE ALERTAS (Backend -> Frontend) ---
         var mensaje = /*[[${mensaje}]]*/ null;
 
         if(mensaje) {
@@ -146,7 +165,7 @@
             }
             else if(mensaje === 'tiene_datos') {
                 titulo = "No se puede eliminar";
-                texto = "Esta tienda tiene una entidad asociada (productos o usuarios).";
+                texto = "Esta tienda tiene productos o usuarios asociados.";
                 icono = "error";
             }
             else if(mensaje === 'duplicado_nombre') {
@@ -159,10 +178,16 @@
                 titulo = "Error"; texto = "Ocurrió un error inesperado."; icono = "error";
             }
 
-            Swal.fire(titulo, texto, icono);
+            // Alerta normal (requiere click en OK para cerrar)
+            Swal.fire({
+                title: titulo,
+                text: texto,
+                icon: icono,
+                confirmButtonText: 'OK'
+            });
         }
 
-        // FUNCIONES JAVASCRIPT
+        // --- 4. FUNCIONES DE INTERFAZ ---
         function cargarFormulario(boton) {
             var id = boton.getAttribute("data-id");
             var nombre = boton.getAttribute("data-nombre");
@@ -189,6 +214,7 @@
             document.getElementById('nombreTienda').focus();
         }
 
+        // --- 5. ELIMINAR CON LOADING ---
         function confirmarEliminar(id) {
             Swal.fire({
                 title: '¿Eliminar Sucursal?',
@@ -201,17 +227,29 @@
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
+                    mostrarLoading(); // <-- Muestra el spinner antes de redirigir
                     window.location.href = "/tiendas/eliminar/" + id;
                 }
             })
         }
 
+        // --- 6. BUSCADOR ---
         document.getElementById('searchInput').addEventListener('keyup', function() {
             var value = this.value.toLowerCase();
             document.querySelectorAll('#tablaTiendas tbody tr').forEach(function(row) {
                 row.style.display = row.textContent.toLowerCase().includes(value) ? '' : 'none';
             });
         });
+
+        // --- 7. LIMPIEZA DE LOADING AL VOLVER ATRÁS ---
+        // Esto evita que si das "Atrás" en el navegador, se quede el spinner pegado.
+        // NO cierra la alerta de éxito, solo el spinner si se recarga desde caché.
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                Swal.close();
+            }
+        });
+
         /*]]>*/
     </script>
 </body>
