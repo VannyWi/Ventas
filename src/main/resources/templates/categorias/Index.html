@@ -4,7 +4,20 @@
     <title>Gestión de Categorías</title>
     <link th:href="@{/css/bootstrap.min.css}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        /* Ajuste para ocultar elementos sobrantes de DataTables si queremos limpieza total */
+        .dataTables_filter { display: none; } /* Ocultamos el buscador por defecto de DT */
+        .dataTables_length { display: none; } /* Ocultamos el select de cantidad por defecto */
+        .page-item.active .page-link {
+            background-color: #0d6efd; /* Color primario Bootstrap */
+            border-color: #0d6efd;
+        }
+    </style>
 </head>
 <body class="bg-light">
 <div th:replace="~{layout/fragments :: navbarAdmin}"></div>
@@ -27,8 +40,7 @@
                         </div>
                     </div>
                     <div class="card-body p-0">
-                        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
-                            <table class="table table-bordered table-striped table-hover m-0 align-middle" id="tablaCategorias">
+                        <div class="table-responsive p-2"> <table class="table table-bordered table-striped table-hover m-0 align-middle w-100" id="tablaCategorias">
                                 <thead class="table-dark sticky-top">
                                     <tr>
                                         <th style="width: 10%;">ID</th>
@@ -77,7 +89,7 @@
                             <input type="hidden" th:field="*{id}" id="idCategoria" />
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Nombre de Categoría:</label>
+                                <label class="form-label fw-bold">Nombre de Categoría: <span class="text-danger">*</span></label>
                                 <input type="text" th:field="*{nombre}" id="nombreCategoria" 
                                        class="form-control form-control-lg" 
                                        placeholder="Ej: Celular" required />
@@ -101,31 +113,54 @@
 
     <script th:src="@{/js/bootstrap.bundle.min.js}"></script>
 
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
     <script th:inline="javascript">
         /*<![CDATA[*/
         
-        // --- FUNCIÓN DE LOADING ---
+        // --- INICIALIZAR DATATABLE ---
+        $(document).ready(function() {
+            var table = $('#tablaCategorias').DataTable({
+                "pageLength": 20, // Listar de 20 en 20
+                "lengthChange": false, // Evita que cambie la estética con un selector extra
+                "searching": true, // Activado internamente (lo conectamos abajo)
+                "ordering": true,
+                "info": true, // Muestra "Mostrando 1 a 20 de X" abajo
+                "autoWidth": false,
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+                },
+                // 'dom' define la estructura: t=tabla, i=info, p=paginación
+                // Quitamos 'f' (filter) y 'l' (length) para usar tus controles propios o fijos
+                "dom": "<'row'<'col-sm-12'tr>>" +
+                       "<'row mt-2'<'col-sm-6'i><'col-sm-6 d-flex justify-content-end'p>>"
+            });
+
+            // 5. CONECTAR TU BUSCADOR PERSONALIZADO AL DATATABLE
+            $('#searchInput').on('keyup', function() {
+                table.search(this.value).draw();
+            });
+        });
+
+        // --- FUNCIONES DE LÓGICA (SWEETALERT) ---
+
         function mostrarLoading() {
             Swal.fire({
                 title: 'Procesando...',
                 html: 'Por favor espere un momento',
                 allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading()
-                }
+                didOpen: () => { Swal.showLoading() }
             });
         }
 
-        // --- INTERCEPTAR ENVÍO DEL FORMULARIO (GUARDAR) ---
         document.getElementById('formCategoria').addEventListener('submit', function() {
             mostrarLoading(); 
         });
 
-        // 1. ALERTAS (Tus alertas originales)
         var mensaje = /*[[${mensaje}]]*/ null;
-        
         if(mensaje) {
-            // Aquí NO usamos 'timer', por lo que el botón OK se queda hasta que el usuario hace click.
             if(mensaje === 'guardado') Swal.fire('¡Éxito!', 'Categoría guardada', 'success');
             else if(mensaje === 'editado') Swal.fire('¡Éxito!', 'Categoría actualizada', 'success');
             else if(mensaje === 'eliminado') Swal.fire('Eliminado', 'Categoria eliminado', 'success');
@@ -134,7 +169,6 @@
             else Swal.fire('Error', 'Ocurrió un error inesperado', 'error');
         }
 
-        // 2. CARGAR FORMULARIO
         function cargarFormulario(boton) {
             var id = boton.getAttribute("data-id");
             var nombre = boton.getAttribute("data-nombre");
@@ -144,7 +178,6 @@
             document.querySelector('.col-md-4 .card').classList.add('border-warning');
         }
 
-        // 3. LIMPIAR
         function limpiarFormulario() {
             document.getElementById('idCategoria').value = '';
             document.getElementById('nombreCategoria').value = '';
@@ -152,7 +185,6 @@
             document.getElementById('nombreCategoria').focus();
         }
 
-        // 4. CONFIRMAR ELIMINAR (Con Loading)
         function confirmarEliminar(id) {
             Swal.fire({
                 title: '¿Estás seguro?',
@@ -165,26 +197,14 @@
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    mostrarLoading(); // Muestra el spinner antes de recargar
+                    mostrarLoading();
                     window.location.href = "/categorias/eliminar/" + id;
                 }
             })
         }
 
-        // 5. BUSCADOR
-        document.getElementById('searchInput').addEventListener('keyup', function() {
-            var value = this.value.toLowerCase();
-            var rows = document.querySelectorAll('#tablaCategorias tbody tr');
-            rows.forEach(function(row) {
-                row.style.display = row.textContent.toLowerCase().includes(value) ? '' : 'none';
-            });
-        });
-
-        // --- CORRECCIÓN IMPORTANTE: CONTROL DEL LOADING AL VOLVER ---
-        // Modificado para que NO cierre la alerta de éxito, solo cierre si viene del historial (Atrás)
         window.addEventListener('pageshow', function(event) {
             if (event.persisted) {
-                // Solo si la página se carga desde la memoria caché (botón atrás) cerramos alertas
                 Swal.close();
             }
         });

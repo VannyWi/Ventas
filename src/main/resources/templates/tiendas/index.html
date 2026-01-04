@@ -4,7 +4,20 @@
     <title>Gestión de Tiendas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        /* Ajustes para mantener tu estética limpia */
+        .dataTables_filter, .dataTables_length { display: none; } /* Ocultar controles default de DT */
+        .page-item.active .page-link {
+            background-color: #212529; /* Color dark acorde a tu header */
+            border-color: #212529;
+        }
+        .table-responsive { overflow-x: hidden; } /* Evitar scroll horizontal innecesario por DT */
+    </style>
 </head>
 <body class="bg-light">
 
@@ -28,8 +41,8 @@
                         </div>
                     </div>
                     <div class="card-body p-0">
-                        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
-                            <table class="table table-bordered table-striped table-hover m-0 align-middle" id="tablaTiendas">
+                        <div class="table-responsive p-2">
+                            <table class="table table-bordered table-striped table-hover m-0 align-middle w-100" id="tablaTiendas">
                                 <thead class="table-dark sticky-top">
                                     <tr>
                                         <th style="width: 5%;">ID</th>
@@ -57,14 +70,12 @@
                                                     onclick="cargarFormulario(this)" title="Editar">
                                                 <i class="bi bi-pencil-square"></i>
                                             </button>
+                                            
                                             <button type="button" class="btn btn-danger btn-sm"
                                                     th:onclick="|confirmarEliminar(${t.id})|" title="Eliminar">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </td>
-                                    </tr>
-                                    <tr th:if="${#lists.isEmpty(listaTiendas)}">
-                                        <td colspan="6" class="text-center text-muted">No hay tiendas registradas</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -108,8 +119,8 @@
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Dirección:</label>
-                                <input type="text" th:field="*{direccion}" id="direccionTienda" class="form-control" placeholder="Ej: Av. Principal 123" />
+                                <label class="form-label fw-bold">Dirección: <span class="text-danger">*</span></label>
+                                <input type="text" th:field="*{direccion}" id="direccionTienda" class="form-control" placeholder="Ej: Av. Principal 123" required />
                             </div>
 
                             <div class="d-grid gap-2">
@@ -123,12 +134,38 @@
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
     <script th:inline="javascript">
         /*<![CDATA[*/
         
-        // --- 1. FUNCIÓN MOSTRAR LOADING ---
+        // --- 1. INICIALIZAR DATATABLES ---
+        $(document).ready(function() {
+            var table = $('#tablaTiendas').DataTable({
+                "pageLength": 20,       // Listar 20 por defecto
+                "lengthChange": false,  // Ocultar selector de cantidad
+                "searching": true,      // Activar búsqueda interna
+                "ordering": true,       // Activar ordenamiento
+                "info": true,           // Mostrar info "Mostrando 1 a 20..."
+                "autoWidth": false,
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+                },
+                // Definimos estructura del DOM para que los controles de paginación queden abajo a la derecha
+                "dom": "<'row'<'col-sm-12'tr>>" + // t=tabla, r=procesando
+                       "<'row mt-3'<'col-sm-6'i><'col-sm-6 d-flex justify-content-end'p>>" // i=info, p=paginación
+            });
+
+            // Conectar TU buscador personalizado al DataTable
+            $('#searchInput').on('keyup', function() {
+                table.search(this.value).draw();
+            });
+        });
+
+        // --- 2. FUNCIÓN MOSTRAR LOADING ---
         function mostrarLoading() {
             Swal.fire({
                 title: 'Procesando...',
@@ -140,13 +177,12 @@
             });
         }
 
-        // --- 2. INTERCEPTAR EL ENVÍO DEL FORMULARIO ---
-        // Esto muestra el loading cuando das click a "Guardar Tienda"
+        // --- 3. INTERCEPTAR EL ENVÍO DEL FORMULARIO ---
         document.getElementById('formTienda').addEventListener('submit', function() {
             mostrarLoading();
         });
 
-        // --- 3. GESTIÓN DE ALERTAS (Backend -> Frontend) ---
+        // --- 4. GESTIÓN DE ALERTAS ---
         var mensaje = /*[[${mensaje}]]*/ null;
 
         if(mensaje) {
@@ -178,7 +214,6 @@
                 titulo = "Error"; texto = "Ocurrió un error inesperado."; icono = "error";
             }
 
-            // Alerta normal (requiere click en OK para cerrar)
             Swal.fire({
                 title: titulo,
                 text: texto,
@@ -187,7 +222,7 @@
             });
         }
 
-        // --- 4. FUNCIONES DE INTERFAZ ---
+        // --- 5. FUNCIONES DE INTERFAZ ---
         function cargarFormulario(boton) {
             var id = boton.getAttribute("data-id");
             var nombre = boton.getAttribute("data-nombre");
@@ -198,8 +233,6 @@
             document.getElementById('idTienda').value = id;
             document.getElementById('nombreTienda').value = nombre;
             document.getElementById('direccionTienda').value = direccion;
-            
-            // Si viene nulo del backend, ponemos vacío
             document.getElementById('rucTienda').value = (ruc === 'null') ? '' : ruc;
             document.getElementById('celularTienda').value = (celular === 'null') ? '' : celular;
 
@@ -214,7 +247,7 @@
             document.getElementById('nombreTienda').focus();
         }
 
-        // --- 5. ELIMINAR CON LOADING ---
+        // --- 6. ELIMINAR CON LOADING ---
         function confirmarEliminar(id) {
             Swal.fire({
                 title: '¿Eliminar Sucursal?',
@@ -227,23 +260,13 @@
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    mostrarLoading(); // <-- Muestra el spinner antes de redirigir
+                    mostrarLoading(); 
                     window.location.href = "/tiendas/eliminar/" + id;
                 }
             })
         }
 
-        // --- 6. BUSCADOR ---
-        document.getElementById('searchInput').addEventListener('keyup', function() {
-            var value = this.value.toLowerCase();
-            document.querySelectorAll('#tablaTiendas tbody tr').forEach(function(row) {
-                row.style.display = row.textContent.toLowerCase().includes(value) ? '' : 'none';
-            });
-        });
-
-        // --- 7. LIMPIEZA DE LOADING AL VOLVER ATRÁS ---
-        // Esto evita que si das "Atrás" en el navegador, se quede el spinner pegado.
-        // NO cierra la alerta de éxito, solo el spinner si se recarga desde caché.
+        // --- 7. LIMPIEZA AL VOLVER ---
         window.addEventListener('pageshow', function(event) {
             if (event.persisted) {
                 Swal.close();
