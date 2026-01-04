@@ -237,6 +237,9 @@ public class VentaController {
             usuario.getId(), inicio, fin
         );
 
+        // **AQUÍ ESTABA EL ERROR: FALTABA ESTA LÍNEA**
+        calcularResumenFinanciero(model, misVentas);
+
         model.addAttribute("listaVentas", misVentas);
         model.addAttribute("fechaInicio", fechaInicio);
         model.addAttribute("fechaFin", fechaFin);
@@ -263,20 +266,17 @@ public class VentaController {
             usuario.getId(), inicio, fin
         );
 
-        // --- SOLUCIÓN ERROR EXCEL ---
-        // Generamos en memoria (RAM) para evitar conflictos de "response committed"
+        // --- SOLUCIÓN ERROR EXCEL (BUFFER MEMORIA) ---
         MisVentasExcelExporter excelExporter = new MisVentasExcelExporter(listaVentas, fechaInicio, fechaFin);
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        excelExporter.generate(outStream); // Usamos el nuevo método generate
+        excelExporter.generate(outStream); 
         byte[] content = outStream.toByteArray();
 
-        // Configurar respuesta
         response.setContentType("application/octet-stream");
         String fechaStr = fechaInicio.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")) + "_al_" + fechaFin.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         response.setHeader("Content-Disposition", "attachment; filename=Mis_Ventas_" + fechaStr + ".xlsx");
         response.setContentLength(content.length);
 
-        // Escribir al cliente
         response.getOutputStream().write(content);
         response.getOutputStream().flush();
     }
@@ -293,14 +293,13 @@ public class VentaController {
         
         if (principal == null) return "redirect:/login";
 
-        // Por defecto: Solo Hoy (SOLICITADO)
+        // Filtro por defecto: HOY
         if (fechaInicio == null) fechaInicio = LocalDate.now(); 
         if (fechaFin == null) fechaFin = LocalDate.now();
 
         LocalDateTime inicio = fechaInicio.atStartOfDay();
         LocalDateTime fin = fechaFin.atTime(LocalTime.MAX);
 
-        // Listas para filtros
         model.addAttribute("listaTiendas", tiendaRepository.findAll());
         if (tiendaId != null && tiendaId > 0) {
             model.addAttribute("listaUsuarios", usuarioRepository.findByTiendaId(tiendaId)); 
@@ -311,10 +310,8 @@ public class VentaController {
         Long filtroTienda = (tiendaId != null && tiendaId > 0) ? tiendaId : null;
         Long filtroUsuario = (usuarioId != null && usuarioId > 0) ? usuarioId : null;
 
-        // Búsqueda
         List<Venta> listaVentas = ventaRepository.filtrarVentasAdmin(inicio, fin, filtroTienda, filtroUsuario);
 
-        // Calcular Totales para Resumen Financiero
         calcularResumenFinanciero(model, listaVentas);
 
         model.addAttribute("listaVentas", listaVentas);
@@ -343,10 +340,9 @@ public class VentaController {
 
         List<Venta> listaVentas = ventaRepository.filtrarVentasAdmin(inicio, fin, filtroTienda, filtroUsuario);
 
-        // --- SOLUCIÓN ERROR EXCEL (BUFFER) ---
         AdminVentasExcelExporter exporter = new AdminVentasExcelExporter(listaVentas, fechaInicio, fechaFin);
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        exporter.generate(outStream); // Usamos generate
+        exporter.generate(outStream); 
         byte[] content = outStream.toByteArray();
 
         response.setContentType("application/octet-stream");
@@ -359,7 +355,7 @@ public class VentaController {
     }
 
     // ==========================================
-    // 9. API DETALLE (POPUP) - JSON
+    // 9. API DETALLE (POPUP JSON)
     // ==========================================
     @GetMapping("/api/detalle/{id}")
     @ResponseBody
@@ -381,22 +377,24 @@ public class VentaController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // Método auxiliar para Resumen Financiero
+    // MÉTODO AUXILIAR PARA TOTALES (PROTEGIDO CONTRA NULL)
     private void calcularResumenFinanciero(Model model, List<Venta> ventas) {
         Double mEfectivo = 0.0;
         Double mTarjeta = 0.0;
         Double mQr = 0.0;
 
-        for (Venta v : ventas) {
-            String m = (v.getMetodoPago() != null) ? v.getMetodoPago().toLowerCase() : "";
-            Double valor = (v.getMontoTotal() != null) ? v.getMontoTotal() : 0.0;
+        if (ventas != null) {
+            for (Venta v : ventas) {
+                String m = (v.getMetodoPago() != null) ? v.getMetodoPago().toLowerCase() : "";
+                Double valor = (v.getMontoTotal() != null) ? v.getMontoTotal() : 0.0;
 
-            if (m.contains("efectivo") || m.contains("contado")) {
-                mEfectivo += valor;
-            } else if (m.contains("tarjeta") || m.contains("débito") || m.contains("crédito")) {
-                mTarjeta += valor;
-            } else {
-                mQr += valor;
+                if (m.contains("efectivo") || m.contains("contado")) {
+                    mEfectivo += valor;
+                } else if (m.contains("tarjeta") || m.contains("débito") || m.contains("crédito")) {
+                    mTarjeta += valor;
+                } else {
+                    mQr += valor;
+                }
             }
         }
         model.addAttribute("montoEfectivo", mEfectivo);
